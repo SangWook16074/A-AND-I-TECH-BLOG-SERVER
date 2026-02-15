@@ -1,8 +1,0 @@
-{"t":0,"agent":"e16c65d","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
-{"t":0,"agent":"b50a010","agent_type":"Plan","event":"agent_start","parent_mode":"none"}
-{"t":0,"agent":"e16c65d","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":2574}
-{"t":0,"agent":"system","event":"keyword_detected","keyword":"tdd"}
-{"t":0,"agent":"system","event":"skill_invoked","skill_name":"oh-my-claudecode:tdd"}
-{"t":0,"agent":"0968fab","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
-{"t":0,"agent":"b50a010","agent_type":"Plan","event":"agent_stop","success":true,"duration_ms":10871}
-{"t":0,"agent":"0968fab","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":46647}

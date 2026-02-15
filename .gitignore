@@ -38,3 +38,10 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+# Local agent/session artifacts
+.omc/
+
+# Markdown docs managed outside git
+*.md
+!README.md
