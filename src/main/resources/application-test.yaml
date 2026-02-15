@@ -1,0 +1,25 @@
+spring:
+  codec:
+    max-in-memory-size: 10MB
+
+  r2dbc:
+    url: r2dbc:tc:postgresql:///tech_blog?TC_IMAGE_TAG=16-alpine
+    username: tech_blog
+    password: tech_blog
+
+  flyway:
+    enabled: false
+
+app:
+  s3:
+    bucket: tech-blog-test
+    region: us-east-1
+    public-base-url: ""
+
+  upload:
+    max-size-bytes: 5242880
+    allowed-content-types:
+      - image/png
+      - image/jpeg
+      - image/gif
+      - image/webp

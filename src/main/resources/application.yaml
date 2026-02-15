@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: tech.blog
+  profiles:
+    default: local
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

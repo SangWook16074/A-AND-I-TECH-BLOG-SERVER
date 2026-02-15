@@ -1,0 +1,5 @@
+{"t":0,"agent":"56af2a2","agent_type":"Plan","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"83247c5","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"83247c5","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":3426}
+{"t":0,"agent":"56af2a2","agent_type":"Plan","event":"agent_stop","success":true,"duration_ms":6471}
+{"t":0,"agent":"fe66735","agent_type":"claude-code-guide","event":"agent_start","parent_mode":"none"}
