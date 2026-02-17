@@ -36,7 +36,7 @@ class PostServiceImpl(
 	}
 
 	override suspend fun get(postId: UUID): PostResponse =
-		postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted)?.toResponse()
+		postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted.name)?.toResponse()
 			?: throw notFound(postId)
 
 	override suspend fun list(page: Int, size: Int, status: PostStatus?): PagedPostResponse {
@@ -71,7 +71,7 @@ class PostServiceImpl(
 	}
 
 	override suspend fun patch(postId: UUID, request: PatchPostRequest): PostResponse {
-		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) ?: throw notFound(postId)
+		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted.name) ?: throw notFound(postId)
 		val updated = current.copy(
 			title = request.title ?: current.title,
 			contentMarkdown = request.contentMarkdown ?: current.contentMarkdown,
@@ -82,7 +82,7 @@ class PostServiceImpl(
 	}
 
 	override suspend fun delete(postId: UUID) {
-		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) ?: throw notFound(postId)
+		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted.name) ?: throw notFound(postId)
 		postRepository.save(
 			current.copy(
 				status = PostStatus.Deleted,
