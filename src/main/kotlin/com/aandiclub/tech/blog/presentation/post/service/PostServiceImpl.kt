@@ -9,6 +9,8 @@ import com.aandiclub.tech.blog.presentation.post.dto.PatchPostRequest
 import com.aandiclub.tech.blog.presentation.post.dto.PostResponse
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
@@ -32,21 +34,22 @@ class PostServiceImpl(
 	}
 
 	override suspend fun get(postId: UUID): PostResponse =
-		postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted.name)?.toResponse()
+		postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted)?.toResponse()
 			?: throw notFound(postId)
 
 	override suspend fun list(page: Int, size: Int, status: PostStatus?): PagedPostResponse {
 		if (status == PostStatus.Draft) {
 			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "draft posts are only available in draft list")
 		}
-		return listByStatus(page, size, (status ?: PostStatus.Published).name)
+		return listByStatus(page, size, status ?: PostStatus.Published)
 	}
 
 	override suspend fun listDrafts(page: Int, size: Int): PagedPostResponse =
-		listByStatus(page, size, PostStatus.Draft.name)
+		listByStatus(page, size, PostStatus.Draft)
 
-	private suspend fun listByStatus(page: Int, size: Int, status: String): PagedPostResponse {
-		val items = postRepository.findPageByStatus(status, size, (page * size).toLong())
+	private suspend fun listByStatus(page: Int, size: Int, status: PostStatus): PagedPostResponse {
+		val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+		val items = postRepository.findByStatus(status, pageable)
 			.map { it.toResponse() }
 			.toList()
 		val totalElements = postRepository.countByStatus(status)
@@ -62,7 +65,7 @@ class PostServiceImpl(
 	}
 
 	override suspend fun patch(postId: UUID, request: PatchPostRequest): PostResponse {
-		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted.name) ?: throw notFound(postId)
+		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) ?: throw notFound(postId)
 		val updated = current.copy(
 			title = request.title ?: current.title,
 			contentMarkdown = request.contentMarkdown ?: current.contentMarkdown,
@@ -73,7 +76,7 @@ class PostServiceImpl(
 	}
 
 	override suspend fun delete(postId: UUID) {
-		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted.name) ?: throw notFound(postId)
+		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) ?: throw notFound(postId)
 		postRepository.save(
 			current.copy(
 				status = PostStatus.Deleted,
