@@ -14,5 +14,5 @@ data class CreatePostRequest(
 	val contentMarkdown: String,
 	@field:NotNull
 	val authorId: UUID,
-	val status: PostStatus = PostStatus.Draft,
+	val status: PostStatus = PostStatus.Published,
 )
