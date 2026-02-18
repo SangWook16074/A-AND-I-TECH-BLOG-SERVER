@@ -7,11 +7,8 @@ import com.aandiclub.tech.blog.presentation.post.dto.CreatePostRequest
 import com.aandiclub.tech.blog.presentation.post.dto.PagedPostResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PatchPostRequest
 import com.aandiclub.tech.blog.presentation.post.dto.PostResponse
-import kotlinx.coroutines.reactor.awaitSingle
-import org.springframework.data.domain.Sort
-import org.springframework.data.r2dbc.core.R2dbcEntityTemplate
-import org.springframework.data.relational.core.query.Criteria
-import org.springframework.data.relational.core.query.Query
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
@@ -22,7 +19,6 @@ import kotlin.math.ceil
 @Service
 class PostServiceImpl(
 	private val postRepository: PostRepository,
-	private val r2dbcEntityTemplate: R2dbcEntityTemplate,
 ) : PostService {
 
 	override suspend fun create(request: CreatePostRequest): PostResponse {
@@ -43,31 +39,17 @@ class PostServiceImpl(
 		if (status == PostStatus.Draft) {
 			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "draft posts are only available in draft list")
 		}
-		val criteria = if (status == null) {
-			Criteria.where("status").`is`(PostStatus.Published.name)
-		} else {
-			Criteria.where("status").`is`(status.name)
-		}
-		return listByCriteria(page, size, criteria)
+		return listByStatus(page, size, (status ?: PostStatus.Published).name)
 	}
 
 	override suspend fun listDrafts(page: Int, size: Int): PagedPostResponse =
-		listByCriteria(page, size, Criteria.where("status").`is`(PostStatus.Draft.name))
+		listByStatus(page, size, PostStatus.Draft.name)
 
-	private suspend fun listByCriteria(page: Int, size: Int, criteria: Criteria): PagedPostResponse {
-		val selectQuery = Query.query(criteria)
-			.sort(Sort.by(Sort.Order.desc("created_at")))
-			.limit(size)
-			.offset((page * size).toLong())
-		val countQuery = Query.query(criteria)
-
-		val items = r2dbcEntityTemplate.select(Post::class.java)
-			.matching(selectQuery)
-			.all()
+	private suspend fun listByStatus(page: Int, size: Int, status: String): PagedPostResponse {
+		val items = postRepository.findPageByStatus(status, size, (page * size).toLong())
 			.map { it.toResponse() }
-			.collectList()
-			.awaitSingle()
-		val totalElements = r2dbcEntityTemplate.count(countQuery, Post::class.java).awaitSingle()
+			.toList()
+		val totalElements = postRepository.countByStatus(status)
 		val totalPages = if (totalElements == 0L) 0 else ceil(totalElements.toDouble() / size.toDouble()).toInt()
 
 		return PagedPostResponse(
