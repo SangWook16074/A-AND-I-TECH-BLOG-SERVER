@@ -95,6 +95,36 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.items[0].status").isEqualTo("Published")
 	}
 
+	"GET /v1/posts/drafts should return draft paged response" {
+		val authorId = UUID.randomUUID()
+		val now = Instant.parse("2026-02-15T12:00:00Z")
+		coEvery { service.listDrafts(0, 20) } returns
+			PagedPostResponse(
+				items = listOf(
+					PostResponse(
+						id = UUID.randomUUID(),
+						title = "draft title",
+						contentMarkdown = "draft content",
+						authorId = authorId,
+						status = PostStatus.Draft,
+						createdAt = now,
+						updatedAt = now,
+					),
+				),
+				page = 0,
+				size = 20,
+				totalElements = 1,
+				totalPages = 1,
+			)
+
+		webTestClient.get()
+			.uri("/v1/posts/drafts?page=0&size=20")
+			.exchange()
+			.expectStatus().isOk
+			.expectBody()
+			.jsonPath("$.items[0].status").isEqualTo("Draft")
+	}
+
 	"PATCH /v1/posts/{id} should return 200" {
 		val id = UUID.randomUUID()
 		val authorId = UUID.randomUUID()

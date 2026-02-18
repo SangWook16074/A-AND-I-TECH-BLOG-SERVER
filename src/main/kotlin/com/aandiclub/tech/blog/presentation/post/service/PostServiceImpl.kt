@@ -40,12 +40,21 @@ class PostServiceImpl(
 			?: throw notFound(postId)
 
 	override suspend fun list(page: Int, size: Int, status: PostStatus?): PagedPostResponse {
+		if (status == PostStatus.Draft) {
+			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "draft posts are only available in draft list")
+		}
 		val criteria = if (status == null) {
-			Criteria.where("status").not(PostStatus.Deleted.name)
+			Criteria.where("status").`is`(PostStatus.Published.name)
 		} else {
 			Criteria.where("status").`is`(status.name)
 		}
+		return listByCriteria(page, size, criteria)
+	}
 
+	override suspend fun listDrafts(page: Int, size: Int): PagedPostResponse =
+		listByCriteria(page, size, Criteria.where("status").`is`(PostStatus.Draft.name))
+
+	private suspend fun listByCriteria(page: Int, size: Int, criteria: Criteria): PagedPostResponse {
 		val selectQuery = Query.query(criteria)
 			.sort(Sort.by(Sort.Order.desc("created_at")))
 			.limit(size)

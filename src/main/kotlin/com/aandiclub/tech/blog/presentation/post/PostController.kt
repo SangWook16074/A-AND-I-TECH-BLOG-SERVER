@@ -71,6 +71,19 @@ class PostController(
 	): ResponseEntity<PagedPostResponse> =
 		ResponseEntity.ok(postService.list(page, size, status))
 
+	@GetMapping("/drafts")
+	@Operation(summary = "List draft posts")
+	@ApiResponses(
+		value = [
+			ApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PagedPostResponse::class))]),
+		],
+	)
+	suspend fun listDrafts(
+		@RequestParam(defaultValue = "0") @Min(0) page: Int,
+		@RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
+	): ResponseEntity<PagedPostResponse> =
+		ResponseEntity.ok(postService.listDrafts(page, size))
+
 	@PatchMapping("/{postId}")
 	@Operation(summary = "Patch post")
 	@ApiResponses(
