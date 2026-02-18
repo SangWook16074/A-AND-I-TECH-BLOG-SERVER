@@ -25,7 +25,7 @@ class ErrorHandlingTest : StringSpec({
 		val postId = UUID.randomUUID()
 
 		client.get()
-			.uri("/api/v1/posts/$postId")
+			.uri("/v1/posts/$postId")
 			.header(CorrelationIdFilter.HEADER_NAME, "trace-123")
 			.exchange()
 			.expectStatus().isNotFound
@@ -33,13 +33,13 @@ class ErrorHandlingTest : StringSpec({
 			.jsonPath("$.code").isEqualTo("NOT_FOUND")
 			.jsonPath("$.message").isEqualTo("post not found")
 			.jsonPath("$.timestamp").exists()
-			.jsonPath("$.path").isEqualTo("/api/v1/posts/$postId")
+			.jsonPath("$.path").isEqualTo("/v1/posts/$postId")
 			.jsonPath("$.traceId").isEqualTo("trace-123")
 	}
 
 	"validation error should return standardized body" {
 		client.post()
-			.uri("/api/v1/posts")
+			.uri("/v1/posts")
 			.header(CorrelationIdFilter.HEADER_NAME, "trace-validation-1")
 			.bodyValue(
 				CreatePostRequest(
@@ -54,7 +54,7 @@ class ErrorHandlingTest : StringSpec({
 				.expectBody()
 				.jsonPath("$.code").isEqualTo("VALIDATION_FAILED")
 				.jsonPath("$.timestamp").exists()
-				.jsonPath("$.path").isEqualTo("/api/v1/posts")
+				.jsonPath("$.path").isEqualTo("/v1/posts")
 				.jsonPath("$.traceId").isEqualTo("trace-validation-1")
 	}
 })

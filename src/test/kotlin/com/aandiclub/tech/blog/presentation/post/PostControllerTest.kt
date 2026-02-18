@@ -19,7 +19,7 @@ class PostControllerTest : StringSpec({
 	val service = mockk<PostService>()
 	val webTestClient = WebTestClient.bindToController(PostController(service)).build()
 
-	"POST /api/v1/posts should return 201" {
+	"POST /v1/posts should return 201" {
 		val id = UUID.randomUUID()
 		val authorId = UUID.randomUUID()
 		val now = Instant.parse("2026-02-15T12:00:00Z")
@@ -36,7 +36,7 @@ class PostControllerTest : StringSpec({
 		coEvery { service.create(any()) } returns response
 
 		webTestClient.post()
-			.uri("/api/v1/posts")
+			.uri("/v1/posts")
 			.bodyValue(
 				CreatePostRequest(
 					title = "title",
@@ -52,16 +52,16 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.status").isEqualTo("Draft")
 	}
 
-	"GET /api/v1/posts/{id} should return 404 when not found" {
+	"GET /v1/posts/{id} should return 404 when not found" {
 		coEvery { service.get(any()) } throws ResponseStatusException(HttpStatus.NOT_FOUND)
 
 		webTestClient.get()
-			.uri("/api/v1/posts/${UUID.randomUUID()}")
+			.uri("/v1/posts/${UUID.randomUUID()}")
 			.exchange()
 			.expectStatus().isNotFound
 	}
 
-	"GET /api/v1/posts should return paged response" {
+	"GET /v1/posts should return paged response" {
 		val authorId = UUID.randomUUID()
 		val now = Instant.parse("2026-02-15T12:00:00Z")
 		coEvery { service.list(0, 20, null) } returns
@@ -84,7 +84,7 @@ class PostControllerTest : StringSpec({
 			)
 
 		webTestClient.get()
-			.uri("/api/v1/posts?page=0&size=20")
+			.uri("/v1/posts?page=0&size=20")
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
@@ -95,7 +95,7 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.items[0].status").isEqualTo("Published")
 	}
 
-	"PATCH /api/v1/posts/{id} should return 200" {
+	"PATCH /v1/posts/{id} should return 200" {
 		val id = UUID.randomUUID()
 		val authorId = UUID.randomUUID()
 		val now = Instant.parse("2026-02-15T12:00:00Z")
@@ -111,7 +111,7 @@ class PostControllerTest : StringSpec({
 			)
 
 		webTestClient.patch()
-			.uri("/api/v1/posts/$id")
+			.uri("/v1/posts/$id")
 			.bodyValue(
 				PatchPostRequest(
 					title = "updated",
@@ -126,11 +126,11 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.status").isEqualTo("Published")
 	}
 
-	"DELETE /api/v1/posts/{id} should return 204" {
+	"DELETE /v1/posts/{id} should return 204" {
 		coEvery { service.delete(any()) } returns Unit
 
 		webTestClient.delete()
-			.uri("/api/v1/posts/${UUID.randomUUID()}")
+			.uri("/v1/posts/${UUID.randomUUID()}")
 			.exchange()
 			.expectStatus().isNoContent
 	}

@@ -30,7 +30,7 @@ import java.util.UUID
 
 @Validated
 @RestController
-@RequestMapping("/api/v1/posts")
+@RequestMapping("/v1/posts")
 @Tag(name = "Posts", description = "Post CRUD API")
 class PostController(
 	private val postService: PostService,
