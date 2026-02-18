@@ -11,7 +11,7 @@ interface PostRepository : CoroutineCrudRepository<Post, UUID> {
 		"""
 		SELECT * FROM posts
 		WHERE id = :id
-		  AND status::text <> :status
+		  AND status <> :status
 		LIMIT 1
 		""",
 	)
@@ -20,7 +20,7 @@ interface PostRepository : CoroutineCrudRepository<Post, UUID> {
 	@Query(
 		"""
 		SELECT * FROM posts
-		WHERE status::text = :status
+		WHERE status = :status
 		ORDER BY created_at DESC
 		LIMIT :limit OFFSET :offset
 		""",
@@ -30,7 +30,7 @@ interface PostRepository : CoroutineCrudRepository<Post, UUID> {
 	@Query(
 		"""
 		SELECT COUNT(*) FROM posts
-		WHERE status::text = :status
+		WHERE status = :status
 		""",
 	)
 	suspend fun countByStatus(status: String): Long
