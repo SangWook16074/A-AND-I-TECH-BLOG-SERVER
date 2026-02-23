@@ -119,12 +119,14 @@ jobs:
             EOF
 
             cd "${APP_DIR}"
+            COMPOSE_PROJECT_NAME="tech-blog" \
             IMAGE_URI="${IMAGE_URI}" \
             POSTGRES_DB="${POSTGRES_DB}" \
             POSTGRES_USER="${POSTGRES_USER}" \
             POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
             docker compose pull
 
+            COMPOSE_PROJECT_NAME="tech-blog" \
             IMAGE_URI="${IMAGE_URI}" \
             POSTGRES_DB="${POSTGRES_DB}" \
             POSTGRES_USER="${POSTGRES_USER}" \
