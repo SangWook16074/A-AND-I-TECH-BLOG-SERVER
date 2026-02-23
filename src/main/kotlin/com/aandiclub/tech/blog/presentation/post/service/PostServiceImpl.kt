@@ -7,10 +7,12 @@ import com.aandiclub.tech.blog.presentation.post.dto.CreatePostRequest
 import com.aandiclub.tech.blog.presentation.post.dto.PagedPostResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PatchPostRequest
 import com.aandiclub.tech.blog.presentation.post.dto.PostResponse
+import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
+import org.springframework.data.r2dbc.core.R2dbcEntityOperations
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
@@ -21,6 +23,7 @@ import kotlin.math.ceil
 @Service
 class PostServiceImpl(
 	private val postRepository: PostRepository,
+	private val entityOperations: R2dbcEntityOperations,
 ) : PostService {
 
 	override suspend fun create(request: CreatePostRequest): PostResponse {
@@ -31,7 +34,7 @@ class PostServiceImpl(
 			authorId = request.authorId,
 			status = request.status,
 		)
-		return postRepository.save(post).toResponse()
+		return entityOperations.insert(post).awaitSingle().toResponse()
 	}
 
 	override suspend fun get(postId: UUID): PostResponse =
