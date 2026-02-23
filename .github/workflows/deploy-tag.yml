@@ -22,6 +22,9 @@ jobs:
       POSTGRES_DB: ${{ vars.POSTGRES_DB || 'tech_blog' }}
       POSTGRES_USER: ${{ vars.POSTGRES_USER || 'tech_blog' }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      APP_S3_BUCKET: ${{ secrets.APP_S3_BUCKET }}
+      APP_S3_REGION: ${{ secrets.APP_S3_REGION }}
+      APP_S3_PUBLIC_BASE_URL: ${{ secrets.APP_S3_PUBLIC_BASE_URL }}
 
     steps:
       - name: Checkout
@@ -62,14 +65,19 @@ jobs:
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          APP_S3_BUCKET: ${{ env.APP_S3_BUCKET }}
+          APP_S3_REGION: ${{ env.APP_S3_REGION }}
+          APP_S3_PUBLIC_BASE_URL: ${{ env.APP_S3_PUBLIC_BASE_URL }}
         with:
           host: ${{ secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           port: ${{ vars.AWS_PORT || '22' }}
-          envs: AWS_REGION,IMAGE_URI,APP_DIR,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD
+          envs: AWS_REGION,IMAGE_URI,APP_DIR,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,APP_S3_BUCKET,APP_S3_REGION,APP_S3_PUBLIC_BASE_URL
           script: |
             set -euo pipefail
+            : "${APP_S3_BUCKET:?APP_S3_BUCKET is required}"
+            : "${APP_S3_REGION:?APP_S3_REGION is required}"
 
             ECR_REGISTRY="$(echo "${IMAGE_URI}" | cut -d'/' -f1)"
 
@@ -113,6 +121,9 @@ jobs:
                   SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
                   SPRING_FLYWAY_USER: ${POSTGRES_USER}
                   SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+                  APP_S3_BUCKET: ${APP_S3_BUCKET}
+                  APP_S3_REGION: ${APP_S3_REGION}
+                  APP_S3_PUBLIC_BASE_URL: ${APP_S3_PUBLIC_BASE_URL}
 
             volumes:
               postgres_data:
@@ -124,6 +135,9 @@ jobs:
             POSTGRES_DB="${POSTGRES_DB}" \
             POSTGRES_USER="${POSTGRES_USER}" \
             POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+            APP_S3_BUCKET="${APP_S3_BUCKET}" \
+            APP_S3_REGION="${APP_S3_REGION}" \
+            APP_S3_PUBLIC_BASE_URL="${APP_S3_PUBLIC_BASE_URL}" \
             docker compose pull
 
             COMPOSE_PROJECT_NAME="tech-blog" \
@@ -131,6 +145,9 @@ jobs:
             POSTGRES_DB="${POSTGRES_DB}" \
             POSTGRES_USER="${POSTGRES_USER}" \
             POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+            APP_S3_BUCKET="${APP_S3_BUCKET}" \
+            APP_S3_REGION="${APP_S3_REGION}" \
+            APP_S3_PUBLIC_BASE_URL="${APP_S3_PUBLIC_BASE_URL}" \
             docker compose up -d --remove-orphans
 
             for i in {1..30}; do
