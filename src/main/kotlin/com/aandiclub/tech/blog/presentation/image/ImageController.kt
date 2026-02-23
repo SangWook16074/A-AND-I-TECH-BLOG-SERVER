@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/v1/images")
+@RequestMapping("/v1/posts/images")
 @Tag(name = "Images", description = "Image upload API")
 class ImageController(
 	private val imageUploadService: ImageUploadService,

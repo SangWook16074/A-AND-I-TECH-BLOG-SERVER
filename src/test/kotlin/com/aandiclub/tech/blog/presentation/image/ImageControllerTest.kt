@@ -14,7 +14,7 @@ class ImageControllerTest : StringSpec({
 	val service = mockk<ImageUploadService>()
 	val webTestClient = WebTestClient.bindToController(ImageController(service)).build()
 
-	"POST /v1/images should return upload metadata" {
+	"POST /v1/posts/images should return upload metadata" {
 		coEvery { service.upload(any()) } returns ImageUploadResponse(
 			url = "https://bucket.s3.us-east-1.amazonaws.com/images/abc.png",
 			key = "images/abc.png",
@@ -31,7 +31,7 @@ class ImageControllerTest : StringSpec({
 		).contentType(MediaType.IMAGE_PNG)
 
 		webTestClient.post()
-			.uri("/v1/images")
+			.uri("/v1/posts/images")
 			.contentType(MediaType.MULTIPART_FORM_DATA)
 			.body(BodyInserters.fromMultipartData(bodyBuilder.build()))
 			.exchange()

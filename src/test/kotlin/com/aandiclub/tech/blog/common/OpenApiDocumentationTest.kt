@@ -34,6 +34,6 @@ class OpenApiDocumentationTest(
 
 		result.shouldContain("/v1/posts")
 		result.shouldContain("/v1/posts/{postId}")
-		result.shouldContain("/v1/images")
+		result.shouldContain("/v1/posts/images")
 	}
 })
