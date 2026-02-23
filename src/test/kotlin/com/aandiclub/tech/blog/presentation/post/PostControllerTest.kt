@@ -65,11 +65,11 @@ class PostControllerTest : StringSpec({
 		val id = UUID.randomUUID()
 		val authorId = UUID.randomUUID()
 		val now = Instant.parse("2026-02-15T12:00:00Z")
-		val uploadedThumbnailUrl = "https://cdn.example.com/images/uploaded-thumb.webp"
+		val uploadedThumbnailUrl = "https://cdn.example.com/posts/uploaded-thumb.webp"
 		coEvery { imageUploadService.upload(any()) } returns
 			ImageUploadResponse(
 				url = uploadedThumbnailUrl,
-				key = "images/uploaded-thumb.webp",
+				key = "posts/uploaded-thumb.webp",
 				contentType = "image/webp",
 				size = 3,
 			)
