@@ -27,6 +27,7 @@ class PostServiceImpl(
 		val post = Post(
 			title = request.title,
 			contentMarkdown = request.contentMarkdown,
+			thumbnailUrl = request.thumbnailUrl,
 			authorId = request.authorId,
 			status = request.status,
 		)
@@ -69,6 +70,7 @@ class PostServiceImpl(
 		val updated = current.copy(
 			title = request.title ?: current.title,
 			contentMarkdown = request.contentMarkdown ?: current.contentMarkdown,
+			thumbnailUrl = request.thumbnailUrl ?: current.thumbnailUrl,
 			status = request.status ?: current.status,
 			updatedAt = Instant.now(),
 		)
@@ -92,6 +94,7 @@ class PostServiceImpl(
 		id = id,
 		title = title,
 		contentMarkdown = contentMarkdown,
+		thumbnailUrl = thumbnailUrl,
 		authorId = authorId,
 		status = status,
 		createdAt = createdAt,

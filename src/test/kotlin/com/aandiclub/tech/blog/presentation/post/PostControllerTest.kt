@@ -1,7 +1,8 @@
 package com.aandiclub.tech.blog.presentation.post
 
 import com.aandiclub.tech.blog.domain.post.PostStatus
-import com.aandiclub.tech.blog.presentation.post.dto.CreatePostRequest
+import com.aandiclub.tech.blog.presentation.image.ImageUploadService
+import com.aandiclub.tech.blog.presentation.image.dto.ImageUploadResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PagedPostResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PatchPostRequest
 import com.aandiclub.tech.blog.presentation.post.dto.PostResponse
@@ -9,7 +10,11 @@ import com.aandiclub.tech.blog.presentation.post.service.PostService
 import io.kotest.core.spec.style.StringSpec
 import io.mockk.coEvery
 import io.mockk.mockk
+import org.springframework.core.io.ByteArrayResource
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.http.client.MultipartBodyBuilder
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
@@ -17,16 +22,19 @@ import java.util.UUID
 
 class PostControllerTest : StringSpec({
 	val service = mockk<PostService>()
-	val webTestClient = WebTestClient.bindToController(PostController(service)).build()
+	val imageUploadService = mockk<ImageUploadService>()
+	val webTestClient = WebTestClient.bindToController(PostController(service, imageUploadService)).build()
 
 	"POST /v1/posts should return 201" {
 		val id = UUID.randomUUID()
 		val authorId = UUID.randomUUID()
 		val now = Instant.parse("2026-02-15T12:00:00Z")
+		val thumbnailUrl = "https://cdn.example.com/posts/thumbnail-1.webp"
 		val response = PostResponse(
 			id = id,
 			title = "title",
 			contentMarkdown = "content",
+			thumbnailUrl = thumbnailUrl,
 			authorId = authorId,
 			status = PostStatus.Draft,
 			createdAt = now,
@@ -35,21 +43,70 @@ class PostControllerTest : StringSpec({
 
 		coEvery { service.create(any()) } returns response
 
+		val multipart = MultipartBodyBuilder()
+		multipart.part(
+			"post",
+			"""{"title":"title","contentMarkdown":"content","thumbnailUrl":"$thumbnailUrl","authorId":"$authorId","status":"Draft"}""",
+		).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+
 		webTestClient.post()
 			.uri("/v1/posts")
-			.bodyValue(
-				CreatePostRequest(
-					title = "title",
-					contentMarkdown = "content",
-					authorId = authorId,
-					status = PostStatus.Draft,
-				),
-			)
+			.contentType(MediaType.MULTIPART_FORM_DATA)
+			.bodyValue(multipart.build())
 			.exchange()
 			.expectStatus().isCreated
 			.expectBody()
 			.jsonPath("$.id").isEqualTo(id.toString())
+			.jsonPath("$.thumbnailUrl").isEqualTo(thumbnailUrl)
 			.jsonPath("$.status").isEqualTo("Draft")
+	}
+
+	"POST /v1/posts multipart should upload thumbnail and return 201" {
+		val id = UUID.randomUUID()
+		val authorId = UUID.randomUUID()
+		val now = Instant.parse("2026-02-15T12:00:00Z")
+		val uploadedThumbnailUrl = "https://cdn.example.com/images/uploaded-thumb.webp"
+		coEvery { imageUploadService.upload(any()) } returns
+			ImageUploadResponse(
+				url = uploadedThumbnailUrl,
+				key = "images/uploaded-thumb.webp",
+				contentType = "image/webp",
+				size = 3,
+			)
+		coEvery { service.create(match { it.authorId == authorId && it.thumbnailUrl == uploadedThumbnailUrl }) } returns
+			PostResponse(
+				id = id,
+				title = "title",
+				contentMarkdown = "content",
+				thumbnailUrl = uploadedThumbnailUrl,
+				authorId = authorId,
+				status = PostStatus.Published,
+				createdAt = now,
+				updatedAt = now,
+			)
+
+		val multipart = MultipartBodyBuilder()
+		multipart.part(
+			"post",
+			"""{"title":"title","contentMarkdown":"content","authorId":"$authorId","status":"Published"}""",
+		).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+		multipart.part(
+			"thumbnail",
+			object : ByteArrayResource(byteArrayOf(1, 2, 3)) {
+				override fun getFilename(): String = "thumbnail.webp"
+			},
+		).contentType(MediaType.parseMediaType("image/webp"))
+
+		webTestClient.post()
+			.uri("/v1/posts")
+			.contentType(MediaType.MULTIPART_FORM_DATA)
+			.bodyValue(multipart.build())
+			.exchange()
+			.expectStatus().isCreated
+			.expectBody()
+			.jsonPath("$.id").isEqualTo(id.toString())
+			.jsonPath("$.thumbnailUrl").isEqualTo(uploadedThumbnailUrl)
+			.jsonPath("$.status").isEqualTo("Published")
 	}
 
 	"GET /v1/posts/{id} should return 404 when not found" {
@@ -71,6 +128,7 @@ class PostControllerTest : StringSpec({
 						id = UUID.randomUUID(),
 						title = "title",
 						contentMarkdown = "content",
+						thumbnailUrl = "https://cdn.example.com/posts/thumbnail-list.webp",
 						authorId = authorId,
 						status = PostStatus.Published,
 						createdAt = now,
@@ -92,6 +150,7 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.size").isEqualTo(20)
 			.jsonPath("$.totalElements").isEqualTo(1)
 			.jsonPath("$.totalPages").isEqualTo(1)
+			.jsonPath("$.items[0].thumbnailUrl").isEqualTo("https://cdn.example.com/posts/thumbnail-list.webp")
 			.jsonPath("$.items[0].status").isEqualTo("Published")
 	}
 
@@ -129,11 +188,13 @@ class PostControllerTest : StringSpec({
 		val id = UUID.randomUUID()
 		val authorId = UUID.randomUUID()
 		val now = Instant.parse("2026-02-15T12:00:00Z")
+		val thumbnailUrl = "https://cdn.example.com/posts/thumbnail-updated.webp"
 		coEvery { service.patch(eq(id), any()) } returns
 			PostResponse(
 				id = id,
 				title = "updated",
 				contentMarkdown = "updated-content",
+				thumbnailUrl = thumbnailUrl,
 				authorId = authorId,
 				status = PostStatus.Published,
 				createdAt = now,
@@ -146,6 +207,7 @@ class PostControllerTest : StringSpec({
 				PatchPostRequest(
 					title = "updated",
 					contentMarkdown = "updated-content",
+					thumbnailUrl = thumbnailUrl,
 					status = PostStatus.Published,
 				),
 			)
@@ -153,6 +215,7 @@ class PostControllerTest : StringSpec({
 			.expectStatus().isOk
 			.expectBody()
 			.jsonPath("$.title").isEqualTo("updated")
+			.jsonPath("$.thumbnailUrl").isEqualTo(thumbnailUrl)
 			.jsonPath("$.status").isEqualTo("Published")
 	}
 

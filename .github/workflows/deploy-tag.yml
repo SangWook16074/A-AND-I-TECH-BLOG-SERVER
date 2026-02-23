@@ -131,4 +131,19 @@ jobs:
             POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
             docker compose up -d --remove-orphans
 
+            for i in {1..30}; do
+              if docker exec tech-blog-postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tAc "SELECT to_regclass('public.posts') IS NOT NULL;" | grep -q "t"; then
+                echo "Verified: public.posts table exists"
+                break
+              fi
+
+              if [[ "$i" -eq 30 ]]; then
+                echo "ERROR: public.posts table does not exist after deploy"
+                docker logs --tail 200 tech-blog || true
+                exit 1
+              fi
+
+              sleep 2
+            done
+
             docker image prune -f --filter "until=72h"

@@ -8,6 +8,7 @@ data class PostResponse(
 	val id: UUID,
 	val title: String,
 	val contentMarkdown: String,
+	val thumbnailUrl: String? = null,
 	val authorId: UUID,
 	val status: PostStatus,
 	val createdAt: Instant,

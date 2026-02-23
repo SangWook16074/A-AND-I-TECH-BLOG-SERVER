@@ -7,5 +7,6 @@ data class PatchPostRequest(
 	@field:Size(min = 1, max = 200)
 	val title: String? = null,
 	val contentMarkdown: String? = null,
+	val thumbnailUrl: String? = null,
 	val status: PostStatus? = null,
 )

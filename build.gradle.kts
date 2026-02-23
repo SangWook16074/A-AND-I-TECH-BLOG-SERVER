@@ -27,6 +27,7 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.8.13")
 	implementation("org.flywaydb:flyway-core")
+	implementation("org.flywaydb:flyway-database-postgresql")
 	implementation("org.postgresql:postgresql")
 	implementation("org.postgresql:r2dbc-postgresql")
 	implementation("software.amazon.awssdk:s3:2.33.4")

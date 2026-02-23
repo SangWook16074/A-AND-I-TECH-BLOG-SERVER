@@ -12,6 +12,7 @@ data class CreatePostRequest(
 	val title: String,
 	@field:NotBlank
 	val contentMarkdown: String,
+	val thumbnailUrl: String? = null,
 	@field:NotNull
 	val authorId: UUID,
 	val status: PostStatus = PostStatus.Published,

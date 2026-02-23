@@ -1,6 +1,7 @@
 package com.aandiclub.tech.blog.presentation.post
 
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.presentation.image.ImageUploadService
 import com.aandiclub.tech.blog.presentation.post.dto.CreatePostRequest
 import com.aandiclub.tech.blog.presentation.post.dto.PagedPostResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PatchPostRequest
@@ -15,7 +16,9 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.http.codec.multipart.FilePart
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
@@ -34,17 +38,25 @@ import java.util.UUID
 @Tag(name = "Posts", description = "Post CRUD API")
 class PostController(
 	private val postService: PostService,
+	private val imageUploadService: ImageUploadService,
 ) {
-	@PostMapping
-	@Operation(summary = "Create post")
+	@PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+	@Operation(summary = "Create post (multipart, optional thumbnail upload)")
 	@ApiResponses(
 		value = [
 			ApiResponse(responseCode = "201", description = "Created", content = [Content(schema = Schema(implementation = PostResponse::class))]),
 			ApiResponse(responseCode = "400", description = "Validation failed"),
 		],
 	)
-	suspend fun create(@Valid @RequestBody request: CreatePostRequest): ResponseEntity<PostResponse> =
-		ResponseEntity.status(201).body(postService.create(request))
+	suspend fun create(
+		@Valid @RequestPart("post") request: CreatePostRequest,
+		@RequestPart("thumbnail", required = false) thumbnail: FilePart?,
+	): ResponseEntity<PostResponse> {
+		val uploadedThumbnailUrl = thumbnail?.let { imageUploadService.upload(it).url }
+		return ResponseEntity.status(201).body(
+			postService.create(request.copy(thumbnailUrl = uploadedThumbnailUrl ?: request.thumbnailUrl)),
+		)
+	}
 
 	@GetMapping("/{postId}")
 	@Operation(summary = "Get post detail")

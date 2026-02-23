@@ -13,6 +13,8 @@ data class Post(
 	val title: String,
 	@Column("content_markdown")
 	val contentMarkdown: String,
+	@Column("thumbnail_url")
+	val thumbnailUrl: String? = null,
 	@Column("author_id")
 	val authorId: UUID,
 	val status: PostStatus = PostStatus.Draft,
