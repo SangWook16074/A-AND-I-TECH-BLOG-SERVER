@@ -61,12 +61,50 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isCreated
 			.expectBody()
-			.jsonPath("$.id").isEqualTo(postId.toString())
-			.jsonPath("$.thumbnailUrl").isEqualTo(thumbnailUrl)
-			.jsonPath("$.author.id").isEqualTo(authorId)
-			.jsonPath("$.author.nickname").isEqualTo("neo")
-			.jsonPath("$.author.profileImageUrl").isEqualTo("https://cdn.example.com/users/neo.webp")
-			.jsonPath("$.status").isEqualTo("Draft")
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.id").isEqualTo(postId.toString())
+			.jsonPath("$.data.thumbnailUrl").isEqualTo(thumbnailUrl)
+			.jsonPath("$.data.author.id").isEqualTo(authorId)
+			.jsonPath("$.data.author.nickname").isEqualTo("neo")
+			.jsonPath("$.data.author.profileImageUrl").isEqualTo("https://cdn.example.com/users/neo.webp")
+			.jsonPath("$.data.status").isEqualTo("Draft")
+	}
+
+	"POST /v1/posts should accept legacy authorId string" {
+		val postId = UUID.randomUUID()
+		val authorId = "u-legacy-1"
+		val now = Instant.parse("2026-02-15T12:00:00Z")
+		coEvery { service.create(match { it.author.id == authorId }) } returns
+			PostResponse(
+				id = postId,
+				title = "title",
+				contentMarkdown = "content",
+				author = PostAuthorResponse(
+					id = authorId,
+					nickname = "unknown",
+					profileImageUrl = null,
+				),
+				status = PostStatus.Draft,
+				createdAt = now,
+				updatedAt = now,
+			)
+
+		val multipart = MultipartBodyBuilder()
+		multipart.part(
+			"post",
+			"""{"title":"title","contentMarkdown":"content","authorId":"$authorId","status":"Draft"}""",
+		).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+
+		webTestClient.post()
+			.uri("/v1/posts")
+			.contentType(MediaType.MULTIPART_FORM_DATA)
+			.bodyValue(multipart.build())
+			.exchange()
+			.expectStatus().isCreated
+			.expectBody()
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.author.id").isEqualTo(authorId)
+			.jsonPath("$.data.status").isEqualTo("Draft")
 	}
 
 	"POST /v1/posts multipart should upload thumbnail and return 201" {
@@ -118,10 +156,11 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isCreated
 			.expectBody()
-			.jsonPath("$.id").isEqualTo(postId.toString())
-			.jsonPath("$.thumbnailUrl").isEqualTo(uploadedThumbnailUrl)
-			.jsonPath("$.author.id").isEqualTo(authorId)
-			.jsonPath("$.status").isEqualTo("Published")
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.id").isEqualTo(postId.toString())
+			.jsonPath("$.data.thumbnailUrl").isEqualTo(uploadedThumbnailUrl)
+			.jsonPath("$.data.author.id").isEqualTo(authorId)
+			.jsonPath("$.data.status").isEqualTo("Published")
 	}
 
 	"GET /v1/posts/{id} should return 404 when not found" {
@@ -157,9 +196,10 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
-			.jsonPath("$.author.id").isEqualTo("u-2001")
-			.jsonPath("$.author.nickname").isEqualTo("상욱")
-			.jsonPath("$.author.profileImageUrl").isEqualTo("https://cdn.example.com/users/sangwook.webp")
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.author.id").isEqualTo("u-2001")
+			.jsonPath("$.data.author.nickname").isEqualTo("상욱")
+			.jsonPath("$.data.author.profileImageUrl").isEqualTo("https://cdn.example.com/users/sangwook.webp")
 	}
 
 	"GET /v1/posts should return paged response" {
@@ -194,13 +234,14 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
-			.jsonPath("$.page").isEqualTo(0)
-			.jsonPath("$.size").isEqualTo(20)
-			.jsonPath("$.totalElements").isEqualTo(1)
-			.jsonPath("$.totalPages").isEqualTo(1)
-			.jsonPath("$.items[0].thumbnailUrl").isEqualTo("https://cdn.example.com/posts/thumbnail-list.webp")
-			.jsonPath("$.items[0].author.id").isEqualTo(authorId)
-			.jsonPath("$.items[0].status").isEqualTo("Published")
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.page").isEqualTo(0)
+			.jsonPath("$.data.size").isEqualTo(20)
+			.jsonPath("$.data.totalElements").isEqualTo(1)
+			.jsonPath("$.data.totalPages").isEqualTo(1)
+			.jsonPath("$.data.items[0].thumbnailUrl").isEqualTo("https://cdn.example.com/posts/thumbnail-list.webp")
+			.jsonPath("$.data.items[0].author.id").isEqualTo(authorId)
+			.jsonPath("$.data.items[0].status").isEqualTo("Published")
 	}
 
 	"GET /v1/posts/drafts should return draft paged response" {
@@ -234,8 +275,9 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
-			.jsonPath("$.items[0].author.id").isEqualTo(authorId)
-			.jsonPath("$.items[0].status").isEqualTo("Draft")
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.items[0].author.id").isEqualTo(authorId)
+			.jsonPath("$.data.items[0].status").isEqualTo("Draft")
 	}
 
 	"PATCH /v1/posts/{id} should return 200" {
@@ -272,18 +314,22 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
-			.jsonPath("$.title").isEqualTo("updated")
-			.jsonPath("$.thumbnailUrl").isEqualTo(thumbnailUrl)
-			.jsonPath("$.author.id").isEqualTo(authorId)
-			.jsonPath("$.status").isEqualTo("Published")
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.title").isEqualTo("updated")
+			.jsonPath("$.data.thumbnailUrl").isEqualTo(thumbnailUrl)
+			.jsonPath("$.data.author.id").isEqualTo(authorId)
+			.jsonPath("$.data.status").isEqualTo("Published")
 	}
 
-	"DELETE /v1/posts/{id} should return 204" {
+	"DELETE /v1/posts/{id} should return success envelope" {
 		coEvery { service.delete(any()) } returns Unit
 
 		webTestClient.delete()
 			.uri("/v1/posts/${UUID.randomUUID()}")
 			.exchange()
-			.expectStatus().isNoContent
+			.expectStatus().isOk
+			.expectBody()
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.deleted").isEqualTo(true)
 	}
 })

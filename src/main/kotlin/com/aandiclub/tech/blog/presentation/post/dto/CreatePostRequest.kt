@@ -16,6 +16,7 @@ data class CreatePostRequest(
 	val thumbnailUrl: String? = null,
 	@field:Valid
 	@field:NotNull
+	@param:JsonAlias("authorId")
 	@field:JsonAlias("authorId")
 	val author: PostAuthorRequest,
 	val status: PostStatus = PostStatus.Published,

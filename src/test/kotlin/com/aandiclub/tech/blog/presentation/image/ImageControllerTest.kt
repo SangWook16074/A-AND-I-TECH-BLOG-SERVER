@@ -37,9 +37,10 @@ class ImageControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
-			.jsonPath("$.url").isEqualTo("https://bucket.s3.us-east-1.amazonaws.com/posts/abc.png")
-			.jsonPath("$.key").isEqualTo("posts/abc.png")
-			.jsonPath("$.contentType").isEqualTo("image/png")
-			.jsonPath("$.size").isEqualTo(4)
+			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.url").isEqualTo("https://bucket.s3.us-east-1.amazonaws.com/posts/abc.png")
+			.jsonPath("$.data.key").isEqualTo("posts/abc.png")
+			.jsonPath("$.data.contentType").isEqualTo("image/png")
+			.jsonPath("$.data.size").isEqualTo(4)
 	}
 })

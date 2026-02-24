@@ -1,5 +1,6 @@
 package com.aandiclub.tech.blog.presentation.post
 
+import com.aandiclub.tech.blog.common.api.ApiResponse
 import com.aandiclub.tech.blog.domain.post.PostStatus
 import com.aandiclub.tech.blog.presentation.image.ImageUploadService
 import com.aandiclub.tech.blog.presentation.post.dto.CreatePostRequest
@@ -10,7 +11,7 @@ import com.aandiclub.tech.blog.presentation.post.service.PostService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
-import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -44,17 +45,19 @@ class PostController(
 	@Operation(summary = "Create post (multipart, optional thumbnail upload)")
 	@ApiResponses(
 		value = [
-			ApiResponse(responseCode = "201", description = "Created", content = [Content(schema = Schema(implementation = PostResponse::class))]),
-			ApiResponse(responseCode = "400", description = "Validation failed"),
+			SwaggerApiResponse(responseCode = "201", description = "Created", content = [Content(schema = Schema(implementation = PostResponse::class))]),
+			SwaggerApiResponse(responseCode = "400", description = "Validation failed"),
 		],
 	)
 	suspend fun create(
 		@Valid @RequestPart("post") request: CreatePostRequest,
 		@RequestPart("thumbnail", required = false) thumbnail: FilePart?,
-	): ResponseEntity<PostResponse> {
+	): ResponseEntity<ApiResponse<PostResponse>> {
 		val uploadedThumbnailUrl = thumbnail?.let { imageUploadService.upload(it).url }
 		return ResponseEntity.status(201).body(
-			postService.create(request.copy(thumbnailUrl = uploadedThumbnailUrl ?: request.thumbnailUrl)),
+			ApiResponse.success(
+				postService.create(request.copy(thumbnailUrl = uploadedThumbnailUrl ?: request.thumbnailUrl)),
+			),
 		)
 	}
 
@@ -62,64 +65,64 @@ class PostController(
 	@Operation(summary = "Get post detail")
 	@ApiResponses(
 		value = [
-			ApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PostResponse::class))]),
-			ApiResponse(responseCode = "404", description = "Not found"),
+			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PostResponse::class))]),
+			SwaggerApiResponse(responseCode = "404", description = "Not found"),
 		],
 	)
-	suspend fun get(@PathVariable postId: UUID): ResponseEntity<PostResponse> =
-		ResponseEntity.ok(postService.get(postId))
+	suspend fun get(@PathVariable postId: UUID): ResponseEntity<ApiResponse<PostResponse>> =
+		ResponseEntity.ok(ApiResponse.success(postService.get(postId)))
 
 	@GetMapping
 	@Operation(summary = "List posts")
 	@ApiResponses(
 		value = [
-			ApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PagedPostResponse::class))]),
+			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PagedPostResponse::class))]),
 		],
 	)
 	suspend fun list(
 		@RequestParam(defaultValue = "0") @Min(0) page: Int,
 		@RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
 		@RequestParam(required = false) status: PostStatus?,
-	): ResponseEntity<PagedPostResponse> =
-		ResponseEntity.ok(postService.list(page, size, status))
+	): ResponseEntity<ApiResponse<PagedPostResponse>> =
+		ResponseEntity.ok(ApiResponse.success(postService.list(page, size, status)))
 
 	@GetMapping("/drafts")
 	@Operation(summary = "List draft posts")
 	@ApiResponses(
 		value = [
-			ApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PagedPostResponse::class))]),
+			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PagedPostResponse::class))]),
 		],
 	)
 	suspend fun listDrafts(
 		@RequestParam(defaultValue = "0") @Min(0) page: Int,
 		@RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
-	): ResponseEntity<PagedPostResponse> =
-		ResponseEntity.ok(postService.listDrafts(page, size))
+	): ResponseEntity<ApiResponse<PagedPostResponse>> =
+		ResponseEntity.ok(ApiResponse.success(postService.listDrafts(page, size)))
 
 	@PatchMapping("/{postId}")
 	@Operation(summary = "Patch post")
 	@ApiResponses(
 		value = [
-			ApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PostResponse::class))]),
-			ApiResponse(responseCode = "404", description = "Not found"),
+			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PostResponse::class))]),
+			SwaggerApiResponse(responseCode = "404", description = "Not found"),
 		],
 	)
 	suspend fun patch(
 		@PathVariable postId: UUID,
 		@Valid @RequestBody request: PatchPostRequest,
-	): ResponseEntity<PostResponse> =
-		ResponseEntity.ok(postService.patch(postId, request))
+	): ResponseEntity<ApiResponse<PostResponse>> =
+		ResponseEntity.ok(ApiResponse.success(postService.patch(postId, request)))
 
 	@DeleteMapping("/{postId}")
 	@Operation(summary = "Delete post")
 	@ApiResponses(
 		value = [
-			ApiResponse(responseCode = "204", description = "No content"),
-			ApiResponse(responseCode = "404", description = "Not found"),
+			SwaggerApiResponse(responseCode = "200", description = "OK"),
+			SwaggerApiResponse(responseCode = "404", description = "Not found"),
 		],
 	)
-	suspend fun delete(@PathVariable postId: UUID): ResponseEntity<Void> {
+	suspend fun delete(@PathVariable postId: UUID): ResponseEntity<ApiResponse<Map<String, Boolean>>> {
 		postService.delete(postId)
-		return ResponseEntity.noContent().build()
+		return ResponseEntity.ok(ApiResponse.success(mapOf("deleted" to true)))
 	}
 }

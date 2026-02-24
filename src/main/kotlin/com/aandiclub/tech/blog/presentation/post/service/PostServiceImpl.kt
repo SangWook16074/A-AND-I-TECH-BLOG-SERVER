@@ -30,6 +30,7 @@ class PostServiceImpl(
 ) : PostService {
 
 	override suspend fun create(request: CreatePostRequest): PostResponse {
+		val upsertedAuthor = upsertAuthorFromRequest(request.author)
 		val post = Post(
 			title = request.title,
 			contentMarkdown = request.contentMarkdown,
@@ -38,13 +39,7 @@ class PostServiceImpl(
 			status = request.status,
 		)
 		return entityOperations.insert(post).awaitSingle()
-			.toResponse(
-				resolveAuthor(
-					request.author.id,
-					fallbackNickname = request.author.nickname,
-					fallbackThumbnailUrl = request.author.profileImageUrl,
-				),
-			)
+			.toResponse(upsertedAuthor?.toAuthorResponse() ?: resolveAuthor(request.author.id, request.author.nickname, request.author.profileImageUrl))
 	}
 
 	override suspend fun get(postId: UUID): PostResponse =
@@ -83,6 +78,7 @@ class PostServiceImpl(
 
 	override suspend fun patch(postId: UUID, request: PatchPostRequest): PostResponse {
 		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) ?: throw notFound(postId)
+		val upsertedAuthor = request.author?.let { upsertAuthorFromRequest(it) }
 		val patchedAuthorId = request.author?.id ?: current.authorId
 		val updated = current.copy(
 			title = request.title ?: current.title,
@@ -94,11 +90,8 @@ class PostServiceImpl(
 		)
 		val saved = postRepository.save(updated)
 		return saved.toResponse(
-			resolveAuthor(
-				saved.authorId,
-				fallbackNickname = request.author?.nickname,
-				fallbackThumbnailUrl = request.author?.profileImageUrl,
-			),
+			upsertedAuthor?.takeIf { it.id == saved.authorId }?.toAuthorResponse()
+				?: resolveAuthor(saved.authorId, request.author?.nickname, request.author?.profileImageUrl),
 		)
 	}
 
@@ -118,6 +111,37 @@ class PostServiceImpl(
 	private suspend fun loadUsersById(authorIds: Set<String>): Map<String, User> {
 		if (authorIds.isEmpty()) return emptyMap()
 		return userRepository.findAllById(authorIds).toList().associateBy { it.id }
+	}
+
+	private suspend fun upsertAuthorFromRequest(author: com.aandiclub.tech.blog.presentation.post.dto.PostAuthorRequest): User? {
+		val existing = userRepository.findById(author.id)
+		val nickname = author.nickname?.takeIf { it.isNotBlank() } ?: existing?.nickname
+		val thumbnailUrl = author.profileImageUrl ?: existing?.thumbnailUrl
+
+		// Legacy payload(authorId string) can miss nickname; skip upsert in that case.
+		if (nickname == null) return existing
+
+		if (existing == null) {
+			return userRepository.save(
+				User(
+					id = author.id,
+					nickname = nickname,
+					thumbnailUrl = thumbnailUrl,
+				),
+			)
+		}
+
+		if (existing.nickname == nickname && existing.thumbnailUrl == thumbnailUrl) {
+			return existing
+		}
+
+		return userRepository.save(
+			existing.copy(
+				nickname = nickname,
+				thumbnailUrl = thumbnailUrl,
+				updatedAt = Instant.now(),
+			),
+		)
 	}
 
 	private suspend fun resolveAuthor(

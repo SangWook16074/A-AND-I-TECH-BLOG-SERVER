@@ -34,11 +34,10 @@ class ErrorHandlingTest : StringSpec({
 			.exchange()
 			.expectStatus().isNotFound
 			.expectBody()
-			.jsonPath("$.code").isEqualTo("NOT_FOUND")
-			.jsonPath("$.message").isEqualTo("post not found")
+			.jsonPath("$.success").isEqualTo(false)
+			.jsonPath("$.error.code").isEqualTo("NOT_FOUND")
+			.jsonPath("$.error.message").isEqualTo("post not found")
 			.jsonPath("$.timestamp").exists()
-			.jsonPath("$.path").isEqualTo("/v1/posts/$postId")
-			.jsonPath("$.traceId").isEqualTo("trace-123")
 	}
 
 	"validation error should return standardized body" {
@@ -57,9 +56,8 @@ class ErrorHandlingTest : StringSpec({
 				.exchange()
 				.expectStatus().isBadRequest
 				.expectBody()
-				.jsonPath("$.code").isEqualTo("VALIDATION_FAILED")
+				.jsonPath("$.success").isEqualTo(false)
+				.jsonPath("$.error.code").isEqualTo("VALIDATION_FAILED")
 				.jsonPath("$.timestamp").exists()
-				.jsonPath("$.path").isEqualTo("/v1/posts")
-				.jsonPath("$.traceId").isEqualTo("trace-validation-1")
 	}
 })
