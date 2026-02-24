@@ -3,10 +3,11 @@ package com.aandiclub.tech.blog.infrastructure.user.event
 import com.aandiclub.tech.blog.domain.user.User
 import com.aandiclub.tech.blog.infrastructure.user.UserRepository
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.json.JsonMapper
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
@@ -16,12 +17,16 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import java.time.Instant
 
 @Component
+@ConditionalOnProperty(prefix = "app.user-events", name = ["enabled"], havingValue = "true")
 class UserEventsSubscriber(
 	private val sqsAsyncClient: SqsAsyncClient,
 	private val userRepository: UserRepository,
-	private val objectMapper: ObjectMapper,
 	private val userEventsProperties: UserEventsProperties,
 ) {
+	private val objectMapper: JsonMapper = JsonMapper.builder()
+		.findAndAddModules()
+		.build()
+
 	@Scheduled(fixedDelayString = "\${app.user-events.poll-delay-ms:1000}")
 	fun poll() = runBlocking {
 		if (!userEventsProperties.enabled || userEventsProperties.queueUrl.isBlank()) {
