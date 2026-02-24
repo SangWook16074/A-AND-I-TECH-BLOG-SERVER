@@ -5,6 +5,7 @@ import com.aandiclub.tech.blog.presentation.image.ImageUploadService
 import com.aandiclub.tech.blog.presentation.image.dto.ImageUploadResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PagedPostResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PatchPostRequest
+import com.aandiclub.tech.blog.presentation.post.dto.PostAuthorResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PostResponse
 import com.aandiclub.tech.blog.presentation.post.service.PostService
 import io.kotest.core.spec.style.StringSpec
@@ -26,16 +27,20 @@ class PostControllerTest : StringSpec({
 	val webTestClient = WebTestClient.bindToController(PostController(service, imageUploadService)).build()
 
 	"POST /v1/posts should return 201" {
-		val id = UUID.randomUUID()
-		val authorId = UUID.randomUUID()
+		val postId = UUID.randomUUID()
+		val authorId = "u-1001"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
 		val thumbnailUrl = "https://cdn.example.com/posts/thumbnail-1.webp"
 		val response = PostResponse(
-			id = id,
+			id = postId,
 			title = "title",
 			contentMarkdown = "content",
 			thumbnailUrl = thumbnailUrl,
-			authorId = authorId,
+			author = PostAuthorResponse(
+				id = authorId,
+				nickname = "neo",
+				profileImageUrl = "https://cdn.example.com/users/neo.webp",
+			),
 			status = PostStatus.Draft,
 			createdAt = now,
 			updatedAt = now,
@@ -46,7 +51,7 @@ class PostControllerTest : StringSpec({
 		val multipart = MultipartBodyBuilder()
 		multipart.part(
 			"post",
-			"""{"title":"title","contentMarkdown":"content","thumbnailUrl":"$thumbnailUrl","authorId":"$authorId","status":"Draft"}""",
+			"""{"title":"title","contentMarkdown":"content","thumbnailUrl":"$thumbnailUrl","author":{"id":"$authorId","nickname":"neo","profileImageUrl":"https://cdn.example.com/users/neo.webp"},"status":"Draft"}""",
 		).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 
 		webTestClient.post()
@@ -56,14 +61,17 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isCreated
 			.expectBody()
-			.jsonPath("$.id").isEqualTo(id.toString())
+			.jsonPath("$.id").isEqualTo(postId.toString())
 			.jsonPath("$.thumbnailUrl").isEqualTo(thumbnailUrl)
+			.jsonPath("$.author.id").isEqualTo(authorId)
+			.jsonPath("$.author.nickname").isEqualTo("neo")
+			.jsonPath("$.author.profileImageUrl").isEqualTo("https://cdn.example.com/users/neo.webp")
 			.jsonPath("$.status").isEqualTo("Draft")
 	}
 
 	"POST /v1/posts multipart should upload thumbnail and return 201" {
-		val id = UUID.randomUUID()
-		val authorId = UUID.randomUUID()
+		val postId = UUID.randomUUID()
+		val authorId = "u-1002"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
 		val uploadedThumbnailUrl = "https://cdn.example.com/posts/uploaded-thumb.webp"
 		coEvery { imageUploadService.upload(any()) } returns
@@ -73,13 +81,19 @@ class PostControllerTest : StringSpec({
 				contentType = "image/webp",
 				size = 3,
 			)
-		coEvery { service.create(match { it.authorId == authorId && it.thumbnailUrl == uploadedThumbnailUrl }) } returns
+		coEvery {
+			service.create(match { it.author.id == authorId && it.thumbnailUrl == uploadedThumbnailUrl })
+		} returns
 			PostResponse(
-				id = id,
+				id = postId,
 				title = "title",
 				contentMarkdown = "content",
 				thumbnailUrl = uploadedThumbnailUrl,
-				authorId = authorId,
+				author = PostAuthorResponse(
+					id = authorId,
+					nickname = "neo",
+					profileImageUrl = "https://cdn.example.com/users/neo.webp",
+				),
 				status = PostStatus.Published,
 				createdAt = now,
 				updatedAt = now,
@@ -88,7 +102,7 @@ class PostControllerTest : StringSpec({
 		val multipart = MultipartBodyBuilder()
 		multipart.part(
 			"post",
-			"""{"title":"title","contentMarkdown":"content","authorId":"$authorId","status":"Published"}""",
+			"""{"title":"title","contentMarkdown":"content","author":{"id":"$authorId","nickname":"neo","profileImageUrl":"https://cdn.example.com/users/neo.webp"},"status":"Published"}""",
 		).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 		multipart.part(
 			"thumbnail",
@@ -104,8 +118,9 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isCreated
 			.expectBody()
-			.jsonPath("$.id").isEqualTo(id.toString())
+			.jsonPath("$.id").isEqualTo(postId.toString())
 			.jsonPath("$.thumbnailUrl").isEqualTo(uploadedThumbnailUrl)
+			.jsonPath("$.author.id").isEqualTo(authorId)
 			.jsonPath("$.status").isEqualTo("Published")
 	}
 
@@ -118,8 +133,37 @@ class PostControllerTest : StringSpec({
 			.expectStatus().isNotFound
 	}
 
+	"GET /v1/posts/{id} should include nested author" {
+		val postId = UUID.randomUUID()
+		val now = Instant.parse("2026-02-15T12:00:00Z")
+		coEvery { service.get(eq(postId)) } returns
+			PostResponse(
+				id = postId,
+				title = "title",
+				contentMarkdown = "content",
+				thumbnailUrl = "https://cdn.example.com/posts/thumbnail-detail.webp",
+				author = PostAuthorResponse(
+					id = "u-2001",
+					nickname = "상욱",
+					profileImageUrl = "https://cdn.example.com/users/sangwook.webp",
+				),
+				status = PostStatus.Published,
+				createdAt = now,
+				updatedAt = now,
+			)
+
+		webTestClient.get()
+			.uri("/v1/posts/$postId")
+			.exchange()
+			.expectStatus().isOk
+			.expectBody()
+			.jsonPath("$.author.id").isEqualTo("u-2001")
+			.jsonPath("$.author.nickname").isEqualTo("상욱")
+			.jsonPath("$.author.profileImageUrl").isEqualTo("https://cdn.example.com/users/sangwook.webp")
+	}
+
 	"GET /v1/posts should return paged response" {
-		val authorId = UUID.randomUUID()
+		val authorId = "u-1003"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
 		coEvery { service.list(0, 20, null) } returns
 			PagedPostResponse(
@@ -129,7 +173,11 @@ class PostControllerTest : StringSpec({
 						title = "title",
 						contentMarkdown = "content",
 						thumbnailUrl = "https://cdn.example.com/posts/thumbnail-list.webp",
-						authorId = authorId,
+						author = PostAuthorResponse(
+							id = authorId,
+							nickname = "neo",
+							profileImageUrl = "https://cdn.example.com/users/neo.webp",
+						),
 						status = PostStatus.Published,
 						createdAt = now,
 						updatedAt = now,
@@ -151,11 +199,12 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.totalElements").isEqualTo(1)
 			.jsonPath("$.totalPages").isEqualTo(1)
 			.jsonPath("$.items[0].thumbnailUrl").isEqualTo("https://cdn.example.com/posts/thumbnail-list.webp")
+			.jsonPath("$.items[0].author.id").isEqualTo(authorId)
 			.jsonPath("$.items[0].status").isEqualTo("Published")
 	}
 
 	"GET /v1/posts/drafts should return draft paged response" {
-		val authorId = UUID.randomUUID()
+		val authorId = "u-1004"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
 		coEvery { service.listDrafts(0, 20) } returns
 			PagedPostResponse(
@@ -164,7 +213,11 @@ class PostControllerTest : StringSpec({
 						id = UUID.randomUUID(),
 						title = "draft title",
 						contentMarkdown = "draft content",
-						authorId = authorId,
+						author = PostAuthorResponse(
+							id = authorId,
+							nickname = "neo",
+							profileImageUrl = null,
+						),
 						status = PostStatus.Draft,
 						createdAt = now,
 						updatedAt = now,
@@ -181,28 +234,33 @@ class PostControllerTest : StringSpec({
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
+			.jsonPath("$.items[0].author.id").isEqualTo(authorId)
 			.jsonPath("$.items[0].status").isEqualTo("Draft")
 	}
 
 	"PATCH /v1/posts/{id} should return 200" {
-		val id = UUID.randomUUID()
-		val authorId = UUID.randomUUID()
+		val postId = UUID.randomUUID()
+		val authorId = "u-1005"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
 		val thumbnailUrl = "https://cdn.example.com/posts/thumbnail-updated.webp"
-		coEvery { service.patch(eq(id), any()) } returns
+		coEvery { service.patch(eq(postId), any()) } returns
 			PostResponse(
-				id = id,
+				id = postId,
 				title = "updated",
 				contentMarkdown = "updated-content",
 				thumbnailUrl = thumbnailUrl,
-				authorId = authorId,
+				author = PostAuthorResponse(
+					id = authorId,
+					nickname = "neo",
+					profileImageUrl = "https://cdn.example.com/users/neo.webp",
+				),
 				status = PostStatus.Published,
 				createdAt = now,
 				updatedAt = now,
 			)
 
 		webTestClient.patch()
-			.uri("/v1/posts/$id")
+			.uri("/v1/posts/$postId")
 			.bodyValue(
 				PatchPostRequest(
 					title = "updated",
@@ -216,6 +274,7 @@ class PostControllerTest : StringSpec({
 			.expectBody()
 			.jsonPath("$.title").isEqualTo("updated")
 			.jsonPath("$.thumbnailUrl").isEqualTo(thumbnailUrl)
+			.jsonPath("$.author.id").isEqualTo(authorId)
 			.jsonPath("$.status").isEqualTo("Published")
 	}
 

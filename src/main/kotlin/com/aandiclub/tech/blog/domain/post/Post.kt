@@ -16,7 +16,7 @@ data class Post(
 	@Column("thumbnail_url")
 	val thumbnailUrl: String? = null,
 	@Column("author_id")
-	val authorId: UUID,
+	val authorId: String,
 	val status: PostStatus = PostStatus.Draft,
 	@Column("created_at")
 	val createdAt: Instant = Instant.now(),

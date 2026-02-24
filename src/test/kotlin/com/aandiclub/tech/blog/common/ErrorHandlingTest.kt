@@ -42,11 +42,11 @@ class ErrorHandlingTest : StringSpec({
 	}
 
 	"validation error should return standardized body" {
-		val authorId = UUID.randomUUID()
+		val userId = "u-validation-1"
 		val multipart = MultipartBodyBuilder()
 		multipart.part(
 			"post",
-			"""{"title":"","contentMarkdown":"content","authorId":"$authorId","status":"${PostStatus.Draft.name}"}""",
+			"""{"title":"","contentMarkdown":"content","author":{"id":"$userId","nickname":"neo","profileImageUrl":"https://cdn.example.com/users/neo.webp"},"status":"${PostStatus.Draft.name}"}""",
 		).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 
 		client.post()

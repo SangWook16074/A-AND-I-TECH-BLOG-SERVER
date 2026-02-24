@@ -2,13 +2,15 @@ package com.aandiclub.tech.blog.presentation.post.service
 
 import com.aandiclub.tech.blog.domain.post.Post
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.domain.user.User
 import com.aandiclub.tech.blog.infrastructure.post.PostRepository
+import com.aandiclub.tech.blog.infrastructure.user.UserRepository
 import com.aandiclub.tech.blog.presentation.post.dto.CreatePostRequest
+import com.aandiclub.tech.blog.presentation.post.dto.PostAuthorResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PagedPostResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PatchPostRequest
 import com.aandiclub.tech.blog.presentation.post.dto.PostResponse
 import kotlinx.coroutines.reactor.awaitSingle
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -23,6 +25,7 @@ import kotlin.math.ceil
 @Service
 class PostServiceImpl(
 	private val postRepository: PostRepository,
+	private val userRepository: UserRepository,
 	private val entityOperations: R2dbcEntityOperations,
 ) : PostService {
 
@@ -31,15 +34,23 @@ class PostServiceImpl(
 			title = request.title,
 			contentMarkdown = request.contentMarkdown,
 			thumbnailUrl = request.thumbnailUrl,
-			authorId = request.authorId,
+			authorId = request.author.id,
 			status = request.status,
 		)
-		return entityOperations.insert(post).awaitSingle().toResponse()
+		return entityOperations.insert(post).awaitSingle()
+			.toResponse(
+				resolveAuthor(
+					request.author.id,
+					fallbackNickname = request.author.nickname,
+					fallbackThumbnailUrl = request.author.profileImageUrl,
+				),
+			)
 	}
 
 	override suspend fun get(postId: UUID): PostResponse =
-		postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted)?.toResponse()
-			?: throw notFound(postId)
+		postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted)?.let { post ->
+			post.toResponse(resolveAuthor(post.authorId))
+		} ?: throw notFound(postId)
 
 	override suspend fun list(page: Int, size: Int, status: PostStatus?): PagedPostResponse {
 		if (status == PostStatus.Draft) {
@@ -53,9 +64,11 @@ class PostServiceImpl(
 
 	private suspend fun listByStatus(page: Int, size: Int, status: PostStatus): PagedPostResponse {
 		val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
-		val items = postRepository.findByStatus(status, pageable)
-			.map { it.toResponse() }
-			.toList()
+		val posts = postRepository.findByStatus(status, pageable).toList()
+		val usersById = loadUsersById(posts.map { it.authorId }.toSet())
+		val items = posts.map { post ->
+			post.toResponse(usersById[post.authorId]?.toAuthorResponse() ?: fallbackAuthor(post.authorId))
+		}
 		val totalElements = postRepository.countByStatus(status)
 		val totalPages = if (totalElements == 0L) 0 else ceil(totalElements.toDouble() / size.toDouble()).toInt()
 
@@ -70,14 +83,23 @@ class PostServiceImpl(
 
 	override suspend fun patch(postId: UUID, request: PatchPostRequest): PostResponse {
 		val current = postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) ?: throw notFound(postId)
+		val patchedAuthorId = request.author?.id ?: current.authorId
 		val updated = current.copy(
 			title = request.title ?: current.title,
 			contentMarkdown = request.contentMarkdown ?: current.contentMarkdown,
 			thumbnailUrl = request.thumbnailUrl ?: current.thumbnailUrl,
+			authorId = patchedAuthorId,
 			status = request.status ?: current.status,
 			updatedAt = Instant.now(),
 		)
-		return postRepository.save(updated).toResponse()
+		val saved = postRepository.save(updated)
+		return saved.toResponse(
+			resolveAuthor(
+				saved.authorId,
+				fallbackNickname = request.author?.nickname,
+				fallbackThumbnailUrl = request.author?.profileImageUrl,
+			),
+		)
 	}
 
 	override suspend fun delete(postId: UUID) {
@@ -93,12 +115,41 @@ class PostServiceImpl(
 	private fun notFound(postId: UUID): ResponseStatusException =
 		ResponseStatusException(HttpStatus.NOT_FOUND, "post not found: $postId")
 
-	private fun Post.toResponse() = PostResponse(
+	private suspend fun loadUsersById(authorIds: Set<String>): Map<String, User> {
+		if (authorIds.isEmpty()) return emptyMap()
+		return userRepository.findAllById(authorIds).toList().associateBy { it.id }
+	}
+
+	private suspend fun resolveAuthor(
+		authorId: String,
+		fallbackNickname: String? = null,
+		fallbackThumbnailUrl: String? = null,
+	): PostAuthorResponse =
+		userRepository.findById(authorId)?.toAuthorResponse()
+			?: fallbackAuthor(authorId, fallbackNickname, fallbackThumbnailUrl)
+
+	private fun User.toAuthorResponse() = PostAuthorResponse(
+		id = id,
+		nickname = nickname,
+		profileImageUrl = thumbnailUrl,
+	)
+
+	private fun fallbackAuthor(
+		authorId: String,
+		nickname: String? = null,
+		thumbnailUrl: String? = null,
+	) = PostAuthorResponse(
+		id = authorId,
+		nickname = nickname?.takeIf { it.isNotBlank() } ?: "unknown",
+		profileImageUrl = thumbnailUrl,
+	)
+
+	private fun Post.toResponse(author: PostAuthorResponse) = PostResponse(
 		id = id,
 		title = title,
 		contentMarkdown = contentMarkdown,
 		thumbnailUrl = thumbnailUrl,
-		authorId = authorId,
+		author = author,
 		status = status,
 		createdAt = createdAt,
 		updatedAt = updatedAt,

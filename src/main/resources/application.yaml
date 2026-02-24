@@ -12,3 +12,12 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+app:
+  user-events:
+    enabled: false
+    queue-url: ""
+    region: us-east-1
+    wait-time-seconds: 20
+    max-messages: 10
+    poll-delay-ms: 1000

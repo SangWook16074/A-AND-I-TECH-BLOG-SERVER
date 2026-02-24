@@ -31,6 +31,7 @@ dependencies {
 	implementation("org.postgresql:postgresql")
 	implementation("org.postgresql:r2dbc-postgresql")
 	implementation("software.amazon.awssdk:s3:2.33.4")
+	implementation("software.amazon.awssdk:sqs:2.33.4")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.8.1")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.8.1")
 

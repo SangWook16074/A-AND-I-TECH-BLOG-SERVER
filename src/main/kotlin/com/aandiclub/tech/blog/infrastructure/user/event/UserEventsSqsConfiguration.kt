@@ -1,17 +1,17 @@
-package com.aandiclub.tech.blog.infrastructure.s3
+package com.aandiclub.tech.blog.infrastructure.user.event
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
 @Configuration
-class S3Configuration {
+class UserEventsSqsConfiguration {
 	@Bean
-	fun s3AsyncClient(s3Properties: S3Properties): S3AsyncClient =
-		S3AsyncClient.builder()
-			.region(Region.of(s3Properties.region))
+	fun sqsAsyncClient(userEventsProperties: UserEventsProperties): SqsAsyncClient =
+		SqsAsyncClient.builder()
+			.region(Region.of(userEventsProperties.region))
 			.credentialsProvider(DefaultCredentialsProvider.builder().build())
 			.build()
 }
