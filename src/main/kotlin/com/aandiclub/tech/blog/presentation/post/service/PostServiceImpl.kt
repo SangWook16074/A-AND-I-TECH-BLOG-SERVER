@@ -284,13 +284,13 @@ class PostServiceImpl(
 		if (nickname == null) return existing
 
 		if (existing == null) {
-			return userRepository.save(
+			return entityOperations.insert(
 				User(
 					id = author.id,
 					nickname = nickname,
 					thumbnailUrl = thumbnailUrl,
 				),
-			)
+			).awaitSingle()
 		}
 
 		if (existing.nickname == nickname && existing.thumbnailUrl == thumbnailUrl) {
