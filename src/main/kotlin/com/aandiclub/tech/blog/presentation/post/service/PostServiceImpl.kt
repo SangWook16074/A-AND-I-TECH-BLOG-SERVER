@@ -45,7 +45,7 @@ class PostServiceImpl(
 			status = request.status,
 		)
 		val saved = entityOperations.insert(post).awaitSingle()
-		saveCollaborators(saved.id, saved.authorId, request.collaborators.orEmpty())
+		mergeCollaborators(saved.id, saved.authorId, request.collaborators.orEmpty())
 		val collaborators = loadCollaborators(saved.id)
 		return saved.toResponse(
 			author = upsertedAuthor?.toAuthorResponse() ?: resolveAuthor(request.author.id, request.author.nickname, request.author.profileImageUrl),
@@ -154,7 +154,7 @@ class PostServiceImpl(
 		)
 		val saved = postRepository.save(updated)
 		request.collaborators?.let { collaborators ->
-			saveCollaborators(saved.id, saved.authorId, collaborators)
+			syncCollaborators(saved.id, saved.authorId, collaborators)
 		}
 		val collaborators = loadCollaborators(saved.id)
 		return saved.toResponse(
@@ -175,7 +175,7 @@ class PostServiceImpl(
 		if (post.authorId != actorId) {
 			throw ResponseStatusException(HttpStatus.FORBIDDEN, "only post owner can add collaborators")
 		}
-		saveCollaborators(postId, post.authorId, listOf(request.collaborator))
+		mergeCollaborators(postId, post.authorId, listOf(request.collaborator))
 		return buildPostResponse(post)
 	}
 
@@ -201,9 +201,49 @@ class PostServiceImpl(
 		}
 	}
 
-	private suspend fun saveCollaborators(postId: UUID, ownerId: String, collaborators: List<PostAuthorRequest>) {
-		if (collaborators.isEmpty()) return
+	private suspend fun mergeCollaborators(postId: UUID, ownerId: String, collaborators: List<PostAuthorRequest>) {
+		val targetIds = normalizeCollaboratorIds(ownerId, collaborators)
+		if (targetIds.isEmpty()) return
+		for (collaboratorId in targetIds) {
+			if (!postCollaboratorRepository.existsByPostIdAndUserId(postId, collaboratorId)) {
+				entityOperations.insert(
+					PostCollaborator(
+						postId = postId,
+						userId = collaboratorId,
+					),
+				).awaitSingle()
+			}
+		}
+	}
+
+	private suspend fun syncCollaborators(postId: UUID, ownerId: String, collaborators: List<PostAuthorRequest>) {
+		val targetIds = normalizeCollaboratorIds(ownerId, collaborators)
+		val existingRows = postCollaboratorRepository.findByPostId(postId).toList()
+		val existingByUserId = existingRows.associateBy { it.userId }
+		val existingIds = existingByUserId.keys
+
+		val toAdd = targetIds - existingIds
+		val toRemove = existingIds - targetIds
+
+		for (collaboratorId in toAdd) {
+			entityOperations.insert(
+				PostCollaborator(
+					postId = postId,
+					userId = collaboratorId,
+				),
+			).awaitSingle()
+		}
+
+		for (collaboratorId in toRemove) {
+			val row = existingByUserId[collaboratorId] ?: continue
+			postCollaboratorRepository.delete(row)
+		}
+	}
+
+	private suspend fun normalizeCollaboratorIds(ownerId: String, collaborators: List<PostAuthorRequest>): Set<String> {
+		if (collaborators.isEmpty()) return emptySet()
 		val uniqueCollaborators = collaborators.associateBy { it.id }.values
+		val ids = linkedSetOf<String>()
 		for (collaborator in uniqueCollaborators) {
 			val collaboratorId = collaborator.id
 			if (collaboratorId == ownerId) {
@@ -212,15 +252,9 @@ class PostServiceImpl(
 			if (upsertAuthorFromRequest(collaborator) == null) {
 				throw ResponseStatusException(HttpStatus.BAD_REQUEST, "collaborator nickname is required for new user")
 			}
-			if (!postCollaboratorRepository.existsByPostIdAndUserId(postId, collaboratorId)) {
-				postCollaboratorRepository.save(
-					PostCollaborator(
-						postId = postId,
-						userId = collaboratorId,
-					),
-				)
-			}
+			ids += collaboratorId
 		}
+		return ids
 	}
 
 	override suspend fun delete(postId: UUID) {
