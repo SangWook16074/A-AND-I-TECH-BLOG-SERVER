@@ -2,6 +2,7 @@ package com.aandiclub.tech.blog.presentation.post
 
 import com.aandiclub.tech.blog.common.api.ApiResponse
 import com.aandiclub.tech.blog.common.auth.AuthTokenService
+import com.aandiclub.tech.blog.common.openapi.OpenApiConfiguration
 import com.aandiclub.tech.blog.domain.post.PostStatus
 import com.aandiclub.tech.blog.presentation.image.ImageUploadService
 import com.aandiclub.tech.blog.presentation.post.dto.AddCollaboratorRequest
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
@@ -92,7 +94,10 @@ class PostController(
 		ResponseEntity.ok(ApiResponse.success(postService.list(page, size, status)))
 
 	@GetMapping("/me")
-	@Operation(summary = "List my posts (owner or collaborator)")
+	@Operation(
+		summary = "List my posts (owner or collaborator)",
+		security = [SecurityRequirement(name = OpenApiConfiguration.BEARER_AUTH_SCHEME)],
+	)
 	@ApiResponses(
 		value = [
 			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PagedPostResponse::class))]),
@@ -123,7 +128,10 @@ class PostController(
 		ResponseEntity.ok(ApiResponse.success(postService.listDrafts(page, size)))
 
 	@GetMapping("/drafts/me")
-	@Operation(summary = "List my draft posts (owner or collaborator)")
+	@Operation(
+		summary = "List my draft posts (owner or collaborator)",
+		security = [SecurityRequirement(name = OpenApiConfiguration.BEARER_AUTH_SCHEME)],
+	)
 	@ApiResponses(
 		value = [
 			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PagedPostResponse::class))]),
@@ -140,7 +148,10 @@ class PostController(
 	}
 
 	@PatchMapping("/{postId}", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-	@Operation(summary = "Patch post (multipart, optional thumbnail upload)")
+	@Operation(
+		summary = "Patch post (multipart, optional thumbnail upload)",
+		security = [SecurityRequirement(name = OpenApiConfiguration.BEARER_AUTH_SCHEME)],
+	)
 	@ApiResponses(
 		value = [
 			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PostResponse::class))]),
@@ -163,7 +174,10 @@ class PostController(
 	}
 
 	@PatchMapping("/{postId}", consumes = [MediaType.APPLICATION_JSON_VALUE])
-	@Operation(summary = "Patch post (json)")
+	@Operation(
+		summary = "Patch post (json)",
+		security = [SecurityRequirement(name = OpenApiConfiguration.BEARER_AUTH_SCHEME)],
+	)
 	@ApiResponses(
 		value = [
 			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PostResponse::class))]),
@@ -180,7 +194,10 @@ class PostController(
 	}
 
 	@PostMapping("/{postId}/collaborators")
-	@Operation(summary = "Add collaborator (owner only)")
+	@Operation(
+		summary = "Add collaborator (owner only)",
+		security = [SecurityRequirement(name = OpenApiConfiguration.BEARER_AUTH_SCHEME)],
+	)
 	@ApiResponses(
 		value = [
 			SwaggerApiResponse(responseCode = "200", description = "OK", content = [Content(schema = Schema(implementation = PostResponse::class))]),

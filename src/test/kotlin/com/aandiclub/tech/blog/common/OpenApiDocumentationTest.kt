@@ -32,8 +32,10 @@ class OpenApiDocumentationTest(
 			?.toString(Charsets.UTF_8)
 			.orEmpty()
 
-		result.shouldContain("/v1/posts")
-		result.shouldContain("/v1/posts/{postId}")
-		result.shouldContain("/v1/posts/images")
-	}
-})
+			result.shouldContain("/v1/posts")
+			result.shouldContain("/v1/posts/{postId}")
+			result.shouldContain("/v1/posts/drafts/me")
+			result.shouldContain("/v1/posts/images")
+			result.shouldContain("bearerAuth")
+		}
+	})
