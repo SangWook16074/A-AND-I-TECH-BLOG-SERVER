@@ -134,7 +134,9 @@ class PostServiceImpl(
 			throw ResponseStatusException(HttpStatus.FORBIDDEN, "only post owner or collaborator can edit")
 		}
 		if (request.collaborators != null && actorId != current.authorId) {
-			throw ResponseStatusException(HttpStatus.FORBIDDEN, "only post owner can modify collaborators")
+			if (hasCollaboratorChanges(postId, request.collaborators)) {
+				throw ResponseStatusException(HttpStatus.FORBIDDEN, "only post owner can modify collaborators")
+			}
 		}
 		if (request.author != null && request.author.id != current.authorId) {
 			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "primary author cannot be changed")
@@ -153,7 +155,8 @@ class PostServiceImpl(
 			updatedAt = Instant.now(),
 		)
 		val saved = postRepository.save(updated)
-		request.collaborators?.let { collaborators ->
+		if (request.collaborators != null && actorId == current.authorId) {
+			val collaborators = request.collaborators
 			syncCollaborators(saved.id, saved.authorId, collaborators)
 		}
 		val collaborators = loadCollaborators(saved.id)
@@ -182,6 +185,12 @@ class PostServiceImpl(
 	private suspend fun canEdit(postId: UUID, ownerId: String, actorId: String): Boolean {
 		if (actorId == ownerId) return true
 		return postCollaboratorRepository.existsByPostIdAndUserId(postId, actorId)
+	}
+
+	private suspend fun hasCollaboratorChanges(postId: UUID, collaborators: List<PostAuthorRequest>): Boolean {
+		val requestedIds = collaborators.map { it.id.trim() }.toSet()
+		val existingIds = postCollaboratorRepository.findByPostId(postId).toList().map { it.userId }.toSet()
+		return requestedIds != existingIds
 	}
 
 	private fun normalizeRequesterId(requesterId: String): String {
