@@ -11,6 +11,8 @@ data class Post(
 	@Id
 	val id: UUID = UUID.randomUUID(),
 	val title: String,
+	@Column("summary")
+	val summary: String = title,
 	@Column("content_markdown")
 	val contentMarkdown: String,
 	@Column("thumbnail_url")
@@ -26,6 +28,8 @@ data class Post(
 	init {
 		require(title.isNotBlank()) { "title must not be blank" }
 		require(title.length <= 200) { "title must be less than or equal to 200 characters" }
+		require(summary.isNotBlank()) { "summary must not be blank" }
+		require(summary.length <= 300) { "summary must be less than or equal to 300 characters" }
 		if (status == PostStatus.Published) {
 			require(contentMarkdown.isNotBlank()) { "contentMarkdown must not be blank when published" }
 		}

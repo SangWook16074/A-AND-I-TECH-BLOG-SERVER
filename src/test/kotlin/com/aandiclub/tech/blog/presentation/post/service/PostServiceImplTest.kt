@@ -121,4 +121,81 @@ class PostServiceImplTest : StringSpec({
 		exception.statusCode shouldBe HttpStatus.FORBIDDEN
 		coVerify(exactly = 0) { postRepository.save(any()) }
 	}
+
+	"patch should regenerate summary from updated markdown content" {
+		val postRepository = mockk<PostRepository>()
+		val postCollaboratorRepository = mockk<PostCollaboratorRepository>()
+		val userRepository = mockk<UserRepository>()
+		val entityOperations = mockk<R2dbcEntityOperations>(relaxed = true)
+		val service = PostServiceImpl(postRepository, postCollaboratorRepository, userRepository, entityOperations)
+
+		val postId = UUID.randomUUID()
+		val ownerId = "u-owner-3"
+		val now = Instant.parse("2026-02-15T12:00:00Z")
+		val current = Post(
+			id = postId,
+			title = "original title",
+			summary = "original summary",
+			contentMarkdown = "original content",
+			authorId = ownerId,
+			status = PostStatus.Published,
+			createdAt = now,
+			updatedAt = now,
+		)
+
+		coEvery { postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) } returns current
+		coEvery { postRepository.save(any()) } answers { firstArg() }
+		coEvery { userRepository.findById(ownerId) } returns User(id = ownerId, nickname = "owner")
+		every { postCollaboratorRepository.findByPostId(postId) } returns flowOf()
+
+		val response = service.patch(
+			postId = postId,
+			requesterId = ownerId,
+			request = PatchPostRequest(
+				contentMarkdown = "## Kotlin Summary\n\n본문  내용",
+				status = PostStatus.Published,
+			),
+		)
+
+		response.summary shouldBe "Kotlin Summary 본문 내용"
+	}
+
+	"patch should fall back to title when draft content is blank" {
+		val postRepository = mockk<PostRepository>()
+		val postCollaboratorRepository = mockk<PostCollaboratorRepository>()
+		val userRepository = mockk<UserRepository>()
+		val entityOperations = mockk<R2dbcEntityOperations>(relaxed = true)
+		val service = PostServiceImpl(postRepository, postCollaboratorRepository, userRepository, entityOperations)
+
+		val postId = UUID.randomUUID()
+		val ownerId = "u-owner-4"
+		val now = Instant.parse("2026-02-15T12:00:00Z")
+		val current = Post(
+			id = postId,
+			title = "old draft title",
+			summary = "old draft summary",
+			contentMarkdown = " ",
+			authorId = ownerId,
+			status = PostStatus.Draft,
+			createdAt = now,
+			updatedAt = now,
+		)
+
+		coEvery { postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) } returns current
+		coEvery { postRepository.save(any()) } answers { firstArg() }
+		coEvery { userRepository.findById(ownerId) } returns User(id = ownerId, nickname = "owner")
+		every { postCollaboratorRepository.findByPostId(postId) } returns flowOf()
+
+		val response = service.patch(
+			postId = postId,
+			requesterId = ownerId,
+			request = PatchPostRequest(
+				title = "new draft title",
+				contentMarkdown = " ",
+				status = PostStatus.Draft,
+			),
+		)
+
+		response.summary shouldBe "new draft title"
+	}
 })

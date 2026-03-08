@@ -33,12 +33,23 @@ class PostServiceImpl(
 	private val userRepository: UserRepository,
 	private val entityOperations: R2dbcEntityOperations,
 ) : PostService {
+	companion object {
+		private const val SUMMARY_MAX_LENGTH = 300
+		private val fencedCodeRegex = Regex("(?s)```.*?```")
+		private val imageRegex = Regex("!\\[[^\\]]*]\\([^)]*\\)")
+		private val linkRegex = Regex("\\[([^\\]]+)]\\([^)]*\\)")
+		private val inlineCodeRegex = Regex("`([^`]*)`")
+		private val markdownSymbolsRegex = Regex("[#>*_~]+")
+		private val whitespaceRegex = Regex("\\s+")
+	}
 
 	override suspend fun create(request: CreatePostRequest): PostResponse {
 		validatePostByStatus(request.title, request.contentMarkdown, request.status)
 		val upsertedAuthor = upsertAuthorFromRequest(request.author)
+		val summary = generateSummary(request.title, request.contentMarkdown)
 		val post = Post(
 			title = request.title,
+			summary = summary,
 			contentMarkdown = request.contentMarkdown,
 			thumbnailUrl = request.thumbnailUrl,
 			authorId = request.author.id,
@@ -145,9 +156,11 @@ class PostServiceImpl(
 		val nextTitle = request.title ?: current.title
 		val nextContentMarkdown = request.contentMarkdown ?: current.contentMarkdown
 		val nextStatus = request.status ?: current.status
+		val nextSummary = generateSummary(nextTitle, nextContentMarkdown)
 		validatePostByStatus(nextTitle, nextContentMarkdown, nextStatus)
 		val updated = current.copy(
 			title = nextTitle,
+			summary = nextSummary,
 			contentMarkdown = nextContentMarkdown,
 			thumbnailUrl = request.thumbnailUrl ?: current.thumbnailUrl,
 			authorId = current.authorId,
@@ -375,6 +388,7 @@ class PostServiceImpl(
 	) = PostResponse(
 		id = id,
 		title = title,
+		summary = summary,
 		contentMarkdown = contentMarkdown,
 		thumbnailUrl = thumbnailUrl,
 		author = author,
@@ -383,4 +397,17 @@ class PostServiceImpl(
 		createdAt = createdAt,
 		updatedAt = updatedAt,
 	)
+
+	private fun generateSummary(title: String, contentMarkdown: String): String {
+		val cleanedFromContent = contentMarkdown
+			.replace(fencedCodeRegex, " ")
+			.replace(imageRegex, " ")
+			.replace(linkRegex, "$1")
+			.replace(inlineCodeRegex, "$1")
+			.replace(markdownSymbolsRegex, " ")
+			.replace(whitespaceRegex, " ")
+			.trim()
+		val base = cleanedFromContent.ifBlank { title.trim() }
+		return base.take(SUMMARY_MAX_LENGTH)
+	}
 }
