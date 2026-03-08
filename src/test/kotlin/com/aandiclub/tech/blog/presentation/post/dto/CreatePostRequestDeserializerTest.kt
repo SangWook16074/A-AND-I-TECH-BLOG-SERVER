@@ -39,4 +39,14 @@ class CreatePostRequestDeserializerTest : StringSpec({
 		request.thumbnailUrl shouldBe "https://cdn.example.com/posts/thumbnail-1.webp"
 		request.author.profileImageUrl shouldBe "https://cdn.example.com/users/neo.webp"
 	}
+
+	"should deserialize summary when provided" {
+		val mapper = ObjectMapper().findAndRegisterModules()
+		val request = mapper.readValue(
+			"""{"title":"title","summary":"custom summary","contentMarkdown":"content","author":{"id":"u-1001","nickname":"neo"}}""",
+			CreatePostRequest::class.java,
+		)
+
+		request.summary shouldBe "custom summary"
+	}
 })

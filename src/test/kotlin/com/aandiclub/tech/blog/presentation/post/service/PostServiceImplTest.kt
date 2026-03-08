@@ -122,7 +122,7 @@ class PostServiceImplTest : StringSpec({
 		coVerify(exactly = 0) { postRepository.save(any()) }
 	}
 
-	"patch should regenerate summary from updated markdown content" {
+	"patch should store request summary when provided" {
 		val postRepository = mockk<PostRepository>()
 		val postCollaboratorRepository = mockk<PostCollaboratorRepository>()
 		val userRepository = mockk<UserRepository>()
@@ -152,15 +152,16 @@ class PostServiceImplTest : StringSpec({
 			postId = postId,
 			requesterId = ownerId,
 			request = PatchPostRequest(
+				summary = "custom summary",
 				contentMarkdown = "## Kotlin Summary\n\n본문  내용",
 				status = PostStatus.Published,
 			),
 		)
 
-		response.summary shouldBe "Kotlin Summary 본문 내용"
+		response.summary shouldBe "custom summary"
 	}
 
-	"patch should fall back to title when draft content is blank" {
+	"patch should set summary to empty when summary is missing" {
 		val postRepository = mockk<PostRepository>()
 		val postCollaboratorRepository = mockk<PostCollaboratorRepository>()
 		val userRepository = mockk<UserRepository>()
@@ -196,6 +197,6 @@ class PostServiceImplTest : StringSpec({
 			),
 		)
 
-		response.summary shouldBe "new draft title"
+		response.summary shouldBe ""
 	}
 })

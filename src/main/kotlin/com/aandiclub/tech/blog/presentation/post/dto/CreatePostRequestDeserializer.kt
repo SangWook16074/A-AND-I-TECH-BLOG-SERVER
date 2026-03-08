@@ -19,6 +19,7 @@ class CreatePostRequestDeserializer : JsonDeserializer<CreatePostRequest>() {
 			?: throw InvalidFormatException(parser, "author is required", node, PostAuthorRequest::class.java)
 
 			val title = node.path("title").asText("")
+			val summary = readText(node, "summary")
 			val contentMarkdown = node.path("contentMarkdown").asText("")
 			val thumbnailUrl = readText(node, "thumbnailUrl")
 			val status = readStatus(parser, node.path("status")) ?: PostStatus.Published
@@ -27,6 +28,7 @@ class CreatePostRequestDeserializer : JsonDeserializer<CreatePostRequest>() {
 
 			return CreatePostRequest(
 				title = title,
+				summary = summary,
 				contentMarkdown = contentMarkdown,
 				thumbnailUrl = thumbnailUrl,
 				author = author,

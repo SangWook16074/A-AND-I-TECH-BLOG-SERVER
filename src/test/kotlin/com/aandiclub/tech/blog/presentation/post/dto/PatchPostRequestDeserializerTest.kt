@@ -16,4 +16,14 @@ class PatchPostRequestDeserializerTest : StringSpec({
 		request.collaborators?.get(0)?.id shouldBe "u-collab-1"
 		request.collaborators?.get(1)?.id shouldBe "u-collab-2"
 	}
+
+	"should deserialize summary when provided" {
+		val mapper = ObjectMapper().findAndRegisterModules()
+		val request = mapper.readValue(
+			"""{"summary":"patched summary"}""",
+			PatchPostRequest::class.java,
+		)
+
+		request.summary shouldBe "patched summary"
+	}
 })

@@ -10,6 +10,8 @@ import jakarta.validation.constraints.Size
 data class PatchPostRequest(
 	@field:Size(min = 1, max = 200)
 	val title: String? = null,
+	@field:Size(max = 300)
+	val summary: String? = null,
 	val contentMarkdown: String? = null,
 	val thumbnailUrl: String? = null,
 	@field:Valid

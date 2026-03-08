@@ -20,6 +20,7 @@ class PatchPostRequestDeserializer : JsonDeserializer<PatchPostRequest>() {
 
 			return PatchPostRequest(
 				title = readText(node, "title"),
+				summary = readText(node, "summary"),
 				contentMarkdown = readText(node, "contentMarkdown"),
 				thumbnailUrl = readText(node, "thumbnailUrl"),
 				author = author,
