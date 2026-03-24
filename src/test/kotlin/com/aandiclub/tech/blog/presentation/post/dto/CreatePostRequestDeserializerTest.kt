@@ -49,4 +49,24 @@ class CreatePostRequestDeserializerTest : StringSpec({
 
 		request.summary shouldBe "custom summary"
 	}
+
+	"should default type to Blog when omitted" {
+		val mapper = ObjectMapper().findAndRegisterModules()
+		val request = mapper.readValue(
+			"""{"title":"title","contentMarkdown":"content","author":{"id":"u-1001","nickname":"neo"}}""",
+			CreatePostRequest::class.java,
+		)
+
+		request.type?.name shouldBe "Blog"
+	}
+
+	"should deserialize explicit type" {
+		val mapper = ObjectMapper().findAndRegisterModules()
+		val request = mapper.readValue(
+			"""{"title":"title","contentMarkdown":"content","author":{"id":"u-1001","nickname":"neo"},"type":"Lecture"}""",
+			CreatePostRequest::class.java,
+		)
+
+		request.type?.name shouldBe "Lecture"
+	}
 })

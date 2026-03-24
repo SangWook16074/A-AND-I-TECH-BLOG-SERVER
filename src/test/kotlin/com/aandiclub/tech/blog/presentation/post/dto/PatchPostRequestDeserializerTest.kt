@@ -26,4 +26,14 @@ class PatchPostRequestDeserializerTest : StringSpec({
 
 		request.summary shouldBe "patched summary"
 	}
+
+	"should deserialize type when provided" {
+		val mapper = ObjectMapper().findAndRegisterModules()
+		val request = mapper.readValue(
+			"""{"type":"Lecture"}""",
+			PatchPostRequest::class.java,
+		)
+
+		request.type?.name shouldBe "Lecture"
+	}
 })

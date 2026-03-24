@@ -3,6 +3,7 @@ package com.aandiclub.tech.blog.presentation.post.service
 import com.aandiclub.tech.blog.domain.post.Post
 import com.aandiclub.tech.blog.domain.post.PostCollaborator
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.domain.post.PostType
 import com.aandiclub.tech.blog.domain.user.User
 import com.aandiclub.tech.blog.infrastructure.post.PostCollaboratorRepository
 import com.aandiclub.tech.blog.infrastructure.post.PostRepository
@@ -198,5 +199,40 @@ class PostServiceImplTest : StringSpec({
 		)
 
 		response.summary shouldBe ""
+	}
+
+	"patch should update post type when requested" {
+		val postRepository = mockk<PostRepository>()
+		val postCollaboratorRepository = mockk<PostCollaboratorRepository>()
+		val userRepository = mockk<UserRepository>()
+		val entityOperations = mockk<R2dbcEntityOperations>(relaxed = true)
+		val service = PostServiceImpl(postRepository, postCollaboratorRepository, userRepository, entityOperations)
+
+		val postId = UUID.randomUUID()
+		val ownerId = "u-owner-5"
+		val now = Instant.parse("2026-02-15T12:00:00Z")
+		val current = Post(
+			id = postId,
+			title = "blog title",
+			contentMarkdown = "blog content",
+			authorId = ownerId,
+			type = PostType.Blog,
+			status = PostStatus.Published,
+			createdAt = now,
+			updatedAt = now,
+		)
+
+		coEvery { postRepository.findByIdAndStatusNot(postId, PostStatus.Deleted) } returns current
+		coEvery { postRepository.save(any()) } answers { firstArg() }
+		coEvery { userRepository.findById(ownerId) } returns User(id = ownerId, nickname = "owner")
+		every { postCollaboratorRepository.findByPostId(postId) } returns flowOf()
+
+		val response = service.patch(
+			postId = postId,
+			requesterId = ownerId,
+			request = PatchPostRequest(type = PostType.Lecture),
+		)
+
+		response.type shouldBe PostType.Lecture
 	}
 })

@@ -3,6 +3,7 @@ package com.aandiclub.tech.blog.presentation.post.service
 import com.aandiclub.tech.blog.domain.post.Post
 import com.aandiclub.tech.blog.domain.post.PostCollaborator
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.domain.post.PostType
 import com.aandiclub.tech.blog.domain.user.User
 import com.aandiclub.tech.blog.infrastructure.post.PostCollaboratorRepository
 import com.aandiclub.tech.blog.infrastructure.post.PostRepository
@@ -43,6 +44,7 @@ class PostServiceImpl(
 			contentMarkdown = request.contentMarkdown,
 			thumbnailUrl = request.thumbnailUrl,
 			authorId = request.author.id,
+			type = request.type ?: PostType.Blog,
 			status = request.status,
 		)
 		val saved = entityOperations.insert(post).awaitSingle()
@@ -59,32 +61,32 @@ class PostServiceImpl(
 		return buildPostResponse(post)
 	}
 
-	override suspend fun list(page: Int, size: Int, status: PostStatus?): PagedPostResponse {
+	override suspend fun list(page: Int, size: Int, status: PostStatus?, type: PostType?): PagedPostResponse {
 		if (status == PostStatus.Draft) {
 			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "draft posts are only available in draft list")
 		}
-		return listByStatus(page, size, status ?: PostStatus.Published)
+		return listByStatus(page, size, status ?: PostStatus.Published, type ?: PostType.Blog)
 	}
 
-	override suspend fun listMyPosts(page: Int, size: Int, requesterId: String, status: PostStatus?): PagedPostResponse {
+	override suspend fun listMyPosts(page: Int, size: Int, requesterId: String, status: PostStatus?, type: PostType?): PagedPostResponse {
 		if (status == PostStatus.Draft) {
 			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "draft posts are only available in draft list")
 		}
 		val actorId = normalizeRequesterId(requesterId)
-		return listByStatusAndUser(page, size, status ?: PostStatus.Published, actorId)
+		return listByStatusAndUser(page, size, status ?: PostStatus.Published, type ?: PostType.Blog, actorId)
 	}
 
-	override suspend fun listDrafts(page: Int, size: Int): PagedPostResponse =
-		listByStatus(page, size, PostStatus.Draft)
+	override suspend fun listDrafts(page: Int, size: Int, type: PostType?): PagedPostResponse =
+		listByStatus(page, size, PostStatus.Draft, type ?: PostType.Blog)
 
-	override suspend fun listMyDrafts(page: Int, size: Int, requesterId: String): PagedPostResponse {
+	override suspend fun listMyDrafts(page: Int, size: Int, requesterId: String, type: PostType?): PagedPostResponse {
 		val actorId = normalizeRequesterId(requesterId)
-		return listByStatusAndUser(page, size, PostStatus.Draft, actorId)
+		return listByStatusAndUser(page, size, PostStatus.Draft, type ?: PostType.Blog, actorId)
 	}
 
-	private suspend fun listByStatus(page: Int, size: Int, status: PostStatus): PagedPostResponse {
+	private suspend fun listByStatus(page: Int, size: Int, status: PostStatus, type: PostType): PagedPostResponse {
 		val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
-		val posts = postRepository.findByStatus(status, pageable).toList()
+		val posts = postRepository.findByStatusAndType(status, type, pageable).toList()
 		val usersById = loadUsersById(posts.map { it.authorId }.toSet())
 		val collaboratorsByPostId = loadCollaboratorsByPostId(posts.map { it.id }.toSet())
 		val items = posts.map { post ->
@@ -93,7 +95,7 @@ class PostServiceImpl(
 				collaborators = collaboratorsByPostId[post.id] ?: emptyList(),
 			)
 		}
-		val totalElements = postRepository.countByStatus(status)
+		val totalElements = postRepository.countByStatusAndType(status, type)
 		val totalPages = if (totalElements == 0L) 0 else ceil(totalElements.toDouble() / size.toDouble()).toInt()
 
 		return PagedPostResponse(
@@ -105,9 +107,9 @@ class PostServiceImpl(
 		)
 	}
 
-	private suspend fun listByStatusAndUser(page: Int, size: Int, status: PostStatus, userId: String): PagedPostResponse {
+	private suspend fun listByStatusAndUser(page: Int, size: Int, status: PostStatus, type: PostType, userId: String): PagedPostResponse {
 		val offset = page.toLong() * size.toLong()
-		val posts = postRepository.findByStatusAndUser(status, userId, size, offset).toList()
+		val posts = postRepository.findByStatusAndTypeAndUser(status, type, userId, size, offset).toList()
 		val usersById = loadUsersById(posts.map { it.authorId }.toSet())
 		val collaboratorsByPostId = loadCollaboratorsByPostId(posts.map { it.id }.toSet())
 		val items = posts.map { post ->
@@ -116,7 +118,7 @@ class PostServiceImpl(
 				collaborators = collaboratorsByPostId[post.id] ?: emptyList(),
 			)
 		}
-		val totalElements = postRepository.countByStatusAndUser(status, userId)
+		val totalElements = postRepository.countByStatusAndTypeAndUser(status, type, userId)
 		val totalPages = if (totalElements == 0L) 0 else ceil(totalElements.toDouble() / size.toDouble()).toInt()
 
 		return PagedPostResponse(
@@ -146,6 +148,7 @@ class PostServiceImpl(
 		val nextTitle = request.title ?: current.title
 		val nextSummary = request.summary ?: ""
 		val nextContentMarkdown = request.contentMarkdown ?: current.contentMarkdown
+		val nextType = request.type ?: current.type
 		val nextStatus = request.status ?: current.status
 		validatePostByStatus(nextTitle, nextContentMarkdown, nextStatus)
 		val updated = current.copy(
@@ -154,6 +157,7 @@ class PostServiceImpl(
 			contentMarkdown = nextContentMarkdown,
 			thumbnailUrl = request.thumbnailUrl ?: current.thumbnailUrl,
 			authorId = current.authorId,
+			type = nextType,
 			status = nextStatus,
 			updatedAt = Instant.now(),
 		)
@@ -383,6 +387,7 @@ class PostServiceImpl(
 		thumbnailUrl = thumbnailUrl,
 		author = author,
 		collaborators = collaborators,
+		type = type,
 		status = status,
 		createdAt = createdAt,
 		updatedAt = updatedAt,

@@ -4,6 +4,7 @@ import com.aandiclub.tech.blog.common.api.ApiResponse
 import com.aandiclub.tech.blog.common.auth.AuthTokenService
 import com.aandiclub.tech.blog.common.openapi.OpenApiConfiguration
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.domain.post.PostType
 import com.aandiclub.tech.blog.presentation.image.ImageUploadService
 import com.aandiclub.tech.blog.presentation.post.dto.AddCollaboratorRequest
 import com.aandiclub.tech.blog.presentation.post.dto.CreatePostRequest
@@ -90,8 +91,9 @@ class PostController(
 		@RequestParam(defaultValue = "0") @Min(0) page: Int,
 		@RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
 		@RequestParam(required = false) status: PostStatus?,
+		@RequestParam(required = false) type: PostType?,
 	): ResponseEntity<ApiResponse<PagedPostResponse>> =
-		ResponseEntity.ok(ApiResponse.success(postService.list(page, size, status)))
+		ResponseEntity.ok(ApiResponse.success(postService.list(page, size, status, type)))
 
 	@GetMapping("/me")
 	@Operation(
@@ -109,9 +111,10 @@ class PostController(
 		@RequestParam(defaultValue = "0") @Min(0) page: Int,
 		@RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
 		@RequestParam(required = false) status: PostStatus?,
+		@RequestParam(required = false) type: PostType?,
 	): ResponseEntity<ApiResponse<PagedPostResponse>> {
 		val requesterId = authTokenService.extractUserId(authorization)
-		return ResponseEntity.ok(ApiResponse.success(postService.listMyPosts(page, size, requesterId, status)))
+		return ResponseEntity.ok(ApiResponse.success(postService.listMyPosts(page, size, requesterId, status, type)))
 	}
 
 	@GetMapping("/drafts")
@@ -124,8 +127,9 @@ class PostController(
 	suspend fun listDrafts(
 		@RequestParam(defaultValue = "0") @Min(0) page: Int,
 		@RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
+		@RequestParam(required = false) type: PostType?,
 	): ResponseEntity<ApiResponse<PagedPostResponse>> =
-		ResponseEntity.ok(ApiResponse.success(postService.listDrafts(page, size)))
+		ResponseEntity.ok(ApiResponse.success(postService.listDrafts(page, size, type)))
 
 	@GetMapping("/drafts/me")
 	@Operation(
@@ -142,9 +146,10 @@ class PostController(
 		@RequestHeader(HttpHeaders.AUTHORIZATION, required = false) authorization: String?,
 		@RequestParam(defaultValue = "0") @Min(0) page: Int,
 		@RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
+		@RequestParam(required = false) type: PostType?,
 	): ResponseEntity<ApiResponse<PagedPostResponse>> {
 		val requesterId = authTokenService.extractUserId(authorization)
-		return ResponseEntity.ok(ApiResponse.success(postService.listMyDrafts(page, size, requesterId)))
+		return ResponseEntity.ok(ApiResponse.success(postService.listMyDrafts(page, size, requesterId, type)))
 	}
 
 	@PatchMapping("/{postId}", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])

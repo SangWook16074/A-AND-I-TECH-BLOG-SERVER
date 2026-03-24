@@ -19,6 +19,8 @@ data class Post(
 	val thumbnailUrl: String? = null,
 	@Column("author_id")
 	val authorId: String,
+	@Column("type")
+	val type: PostType = PostType.Blog,
 	val status: PostStatus = PostStatus.Draft,
 	@Column("created_at")
 	val createdAt: Instant = Instant.now(),

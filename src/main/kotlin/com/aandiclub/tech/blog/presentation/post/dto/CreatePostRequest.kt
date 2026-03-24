@@ -1,6 +1,7 @@
 package com.aandiclub.tech.blog.presentation.post.dto
 
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.domain.post.PostType
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import jakarta.validation.Valid
@@ -25,5 +26,6 @@ data class CreatePostRequest(
 	val author: PostAuthorRequest,
 	@field:Valid
 	val collaborators: List<PostAuthorRequest>? = null,
+	val type: PostType? = null,
 	val status: PostStatus = PostStatus.Published,
 )

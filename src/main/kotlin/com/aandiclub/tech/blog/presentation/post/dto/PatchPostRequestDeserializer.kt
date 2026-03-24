@@ -1,6 +1,7 @@
 package com.aandiclub.tech.blog.presentation.post.dto
 
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.domain.post.PostType
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
@@ -25,9 +26,19 @@ class PatchPostRequestDeserializer : JsonDeserializer<PatchPostRequest>() {
 				thumbnailUrl = readText(node, "thumbnailUrl"),
 				author = author,
 				collaborators = readCollaborators(parser, node),
+				type = readType(parser, node.path("type")),
 				status = readStatus(parser, node.path("status")),
 			)
 		}
+
+	private fun readType(parser: JsonParser, node: JsonNode): PostType? {
+		if (node.isMissingNode || node.isNull) return null
+		return try {
+			PostType.valueOf(node.asText())
+		} catch (_: IllegalArgumentException) {
+			throw InvalidFormatException(parser, "invalid post type", node, PostType::class.java)
+		}
+	}
 
 	private fun readStatus(parser: JsonParser, node: JsonNode): PostStatus? {
 		if (node.isMissingNode || node.isNull) return null

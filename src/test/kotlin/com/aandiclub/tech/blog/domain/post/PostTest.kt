@@ -54,4 +54,14 @@ class PostTest : StringSpec({
 
 		post.status shouldBe PostStatus.Draft
 	}
+
+	"default type should be Blog" {
+		val post = Post(
+			title = "valid title",
+			contentMarkdown = "content",
+			authorId = "u-5",
+		)
+
+		post.type shouldBe PostType.Blog
+	}
 })

@@ -2,6 +2,7 @@ package com.aandiclub.tech.blog.presentation.post
 
 import com.aandiclub.tech.blog.common.auth.AuthTokenService
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.domain.post.PostType
 import com.aandiclub.tech.blog.presentation.image.ImageUploadService
 import com.aandiclub.tech.blog.presentation.image.dto.ImageUploadResponse
 import com.aandiclub.tech.blog.presentation.post.dto.PagedPostResponse
@@ -43,6 +44,7 @@ class PostControllerTest : StringSpec({
 				nickname = "neo",
 				profileImageUrl = "https://cdn.example.com/users/neo.webp",
 			),
+			type = PostType.Blog,
 			status = PostStatus.Draft,
 			createdAt = now,
 			updatedAt = now,
@@ -69,6 +71,7 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.data.author.id").isEqualTo(authorId)
 			.jsonPath("$.data.author.nickname").isEqualTo("neo")
 			.jsonPath("$.data.author.profileImageUrl").isEqualTo("https://cdn.example.com/users/neo.webp")
+			.jsonPath("$.data.type").isEqualTo("Blog")
 			.jsonPath("$.data.status").isEqualTo("Draft")
 	}
 
@@ -114,6 +117,7 @@ class PostControllerTest : StringSpec({
 					nickname = "neo",
 					profileImageUrl = "https://cdn.example.com/users/neo.webp",
 				),
+				type = PostType.Blog,
 				status = PostStatus.Published,
 				createdAt = now,
 				updatedAt = now,
@@ -122,7 +126,7 @@ class PostControllerTest : StringSpec({
 		val multipart = MultipartBodyBuilder()
 		multipart.part(
 			"post",
-			"""{"title":"title","contentMarkdown":"content","author":{"id":"$authorId","nickname":"neo","profileImageUrl":"https://cdn.example.com/users/neo.webp"},"status":"Published"}""",
+			"""{"title":"title","contentMarkdown":"content","author":{"id":"$authorId","nickname":"neo","profileImageUrl":"https://cdn.example.com/users/neo.webp"},"type":"Blog","status":"Published"}""",
 		).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 		multipart.part(
 			"thumbnail",
@@ -175,6 +179,7 @@ class PostControllerTest : StringSpec({
 						profileImageUrl = null,
 					),
 				),
+				type = PostType.Blog,
 				status = PostStatus.Draft,
 				createdAt = now,
 				updatedAt = now,
@@ -183,7 +188,7 @@ class PostControllerTest : StringSpec({
 		val multipart = MultipartBodyBuilder()
 		multipart.part(
 			"post",
-			"""{"title":"title","contentMarkdown":"content","author":{"id":"$authorId","nickname":"owner"},"collaborators":[{"id":"$collaboratorId","nickname":"collab"}],"status":"Draft"}""",
+			"""{"title":"title","contentMarkdown":"content","author":{"id":"$authorId","nickname":"owner"},"collaborators":[{"id":"$collaboratorId","nickname":"collab"}],"type":"Blog","status":"Draft"}""",
 		).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 
 		webTestClient.post()
@@ -220,6 +225,7 @@ class PostControllerTest : StringSpec({
 					nickname = "상욱",
 					profileImageUrl = "https://cdn.example.com/users/sangwook.webp",
 				),
+				type = PostType.Blog,
 				status = PostStatus.Published,
 				createdAt = now,
 				updatedAt = now,
@@ -239,7 +245,7 @@ class PostControllerTest : StringSpec({
 	"GET /v1/posts should return paged response" {
 		val authorId = "u-1003"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
-		coEvery { service.list(0, 20, null) } returns
+		coEvery { service.list(0, 20, null, null) } returns
 			PagedPostResponse(
 				items = listOf(
 					PostResponse(
@@ -252,6 +258,7 @@ class PostControllerTest : StringSpec({
 							nickname = "neo",
 							profileImageUrl = "https://cdn.example.com/users/neo.webp",
 						),
+						type = PostType.Blog,
 						status = PostStatus.Published,
 						createdAt = now,
 						updatedAt = now,
@@ -275,7 +282,24 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.data.totalPages").isEqualTo(1)
 			.jsonPath("$.data.items[0].thumbnailUrl").isEqualTo("https://cdn.example.com/posts/thumbnail-list.webp")
 			.jsonPath("$.data.items[0].author.id").isEqualTo(authorId)
+			.jsonPath("$.data.items[0].type").isEqualTo("Blog")
 			.jsonPath("$.data.items[0].status").isEqualTo("Published")
+	}
+
+	"GET /v1/posts should pass lecture type filter" {
+		coEvery { service.list(0, 20, null, PostType.Lecture) } returns
+			PagedPostResponse(
+				items = emptyList(),
+				page = 0,
+				size = 20,
+				totalElements = 0,
+				totalPages = 0,
+			)
+
+		webTestClient.get()
+			.uri("/v1/posts?page=0&size=20&type=Lecture")
+			.exchange()
+			.expectStatus().isOk
 	}
 
 	"GET /v1/posts/me should return my post paged response" {
@@ -283,7 +307,7 @@ class PostControllerTest : StringSpec({
 		val authorization = "Bearer posts-me-token"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
 		coEvery { authTokenService.extractUserId(eq(authorization)) } returns requesterId
-		coEvery { service.listMyPosts(0, 20, requesterId, null) } returns
+		coEvery { service.listMyPosts(0, 20, requesterId, null, null) } returns
 			PagedPostResponse(
 				items = listOf(
 					PostResponse(
@@ -302,6 +326,7 @@ class PostControllerTest : StringSpec({
 								profileImageUrl = null,
 							),
 						),
+						type = PostType.Blog,
 						status = PostStatus.Published,
 						createdAt = now,
 						updatedAt = now,
@@ -321,6 +346,7 @@ class PostControllerTest : StringSpec({
 			.expectBody()
 			.jsonPath("$.success").isEqualTo(true)
 			.jsonPath("$.data.totalElements").isEqualTo(1)
+			.jsonPath("$.data.items[0].type").isEqualTo("Blog")
 			.jsonPath("$.data.items[0].status").isEqualTo("Published")
 			.jsonPath("$.data.items[0].author.id").isEqualTo(requesterId)
 	}
@@ -328,7 +354,7 @@ class PostControllerTest : StringSpec({
 	"GET /v1/posts/drafts should return draft paged response" {
 		val authorId = "u-1004"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
-		coEvery { service.listDrafts(0, 20) } returns
+		coEvery { service.listDrafts(0, 20, null) } returns
 			PagedPostResponse(
 				items = listOf(
 					PostResponse(
@@ -340,6 +366,7 @@ class PostControllerTest : StringSpec({
 							nickname = "neo",
 							profileImageUrl = null,
 						),
+						type = PostType.Blog,
 						status = PostStatus.Draft,
 						createdAt = now,
 						updatedAt = now,
@@ -358,6 +385,7 @@ class PostControllerTest : StringSpec({
 			.expectBody()
 			.jsonPath("$.success").isEqualTo(true)
 			.jsonPath("$.data.items[0].author.id").isEqualTo(authorId)
+			.jsonPath("$.data.items[0].type").isEqualTo("Blog")
 			.jsonPath("$.data.items[0].status").isEqualTo("Draft")
 	}
 
@@ -366,7 +394,7 @@ class PostControllerTest : StringSpec({
 		val authorization = "Bearer drafts-me-token"
 		val now = Instant.parse("2026-02-15T12:00:00Z")
 		coEvery { authTokenService.extractUserId(eq(authorization)) } returns requesterId
-		coEvery { service.listMyDrafts(0, 20, requesterId) } returns
+		coEvery { service.listMyDrafts(0, 20, requesterId, null) } returns
 			PagedPostResponse(
 				items = listOf(
 					PostResponse(
@@ -385,6 +413,7 @@ class PostControllerTest : StringSpec({
 								profileImageUrl = null,
 							),
 						),
+						type = PostType.Blog,
 						status = PostStatus.Draft,
 						createdAt = now,
 						updatedAt = now,
@@ -404,6 +433,7 @@ class PostControllerTest : StringSpec({
 			.expectBody()
 			.jsonPath("$.success").isEqualTo(true)
 			.jsonPath("$.data.totalElements").isEqualTo(1)
+			.jsonPath("$.data.items[0].type").isEqualTo("Blog")
 			.jsonPath("$.data.items[0].status").isEqualTo("Draft")
 			.jsonPath("$.data.items[0].author.id").isEqualTo(requesterId)
 	}
@@ -427,6 +457,7 @@ class PostControllerTest : StringSpec({
 					nickname = "neo",
 					profileImageUrl = "https://cdn.example.com/users/neo.webp",
 				),
+				type = PostType.Blog,
 				status = PostStatus.Published,
 				createdAt = now,
 				updatedAt = now,
@@ -450,6 +481,7 @@ class PostControllerTest : StringSpec({
 			.jsonPath("$.data.title").isEqualTo("updated")
 			.jsonPath("$.data.thumbnailUrl").isEqualTo(thumbnailUrl)
 			.jsonPath("$.data.author.id").isEqualTo(authorId)
+			.jsonPath("$.data.type").isEqualTo("Blog")
 			.jsonPath("$.data.status").isEqualTo("Published")
 	}
 
@@ -487,6 +519,7 @@ class PostControllerTest : StringSpec({
 						profileImageUrl = null,
 					),
 				),
+				type = PostType.Lecture,
 				status = PostStatus.Published,
 				createdAt = now,
 				updatedAt = now,
@@ -501,6 +534,7 @@ class PostControllerTest : StringSpec({
 				{
 				  "title":"updated",
 				  "contentMarkdown":"updated-content",
+				  "type":"Lecture",
 				  "status":"Published",
 				  "collaborators":[{"id":"$collaboratorId","nickname":"collab"}]
 				}
@@ -510,6 +544,7 @@ class PostControllerTest : StringSpec({
 			.expectStatus().isOk
 			.expectBody()
 			.jsonPath("$.success").isEqualTo(true)
+			.jsonPath("$.data.type").isEqualTo("Lecture")
 			.jsonPath("$.data.collaborators[0].id").isEqualTo(collaboratorId)
 	}
 
@@ -545,6 +580,7 @@ class PostControllerTest : StringSpec({
 					nickname = "neo",
 					profileImageUrl = "https://cdn.example.com/users/neo.webp",
 				),
+				type = PostType.Blog,
 				status = PostStatus.Published,
 				createdAt = now,
 				updatedAt = now,
@@ -598,6 +634,7 @@ class PostControllerTest : StringSpec({
 						profileImageUrl = "https://cdn.example.com/users/collab.webp",
 					),
 				),
+				type = PostType.Blog,
 				status = PostStatus.Published,
 				createdAt = now,
 				updatedAt = now,

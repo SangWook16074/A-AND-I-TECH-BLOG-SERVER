@@ -1,6 +1,7 @@
 package com.aandiclub.tech.blog.presentation.post.dto
 
 import com.aandiclub.tech.blog.domain.post.PostStatus
+import com.aandiclub.tech.blog.domain.post.PostType
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
@@ -22,6 +23,7 @@ class CreatePostRequestDeserializer : JsonDeserializer<CreatePostRequest>() {
 			val summary = readText(node, "summary")
 			val contentMarkdown = node.path("contentMarkdown").asText("")
 			val thumbnailUrl = readText(node, "thumbnailUrl")
+			val type = readType(parser, node.path("type")) ?: PostType.Blog
 			val status = readStatus(parser, node.path("status")) ?: PostStatus.Published
 			val author = parser.codec.treeToValue(authorNode, PostAuthorRequest::class.java)
 			val collaborators = readCollaborators(parser, node)
@@ -33,9 +35,19 @@ class CreatePostRequestDeserializer : JsonDeserializer<CreatePostRequest>() {
 				thumbnailUrl = thumbnailUrl,
 				author = author,
 				collaborators = collaborators,
+				type = type,
 				status = status,
 			)
 		}
+
+	private fun readType(parser: JsonParser, node: JsonNode): PostType? {
+		if (node.isMissingNode || node.isNull) return null
+		return try {
+			PostType.valueOf(node.asText())
+		} catch (_: IllegalArgumentException) {
+			throw InvalidFormatException(parser, "invalid post type", node, PostType::class.java)
+		}
+	}
 
 	private fun readStatus(parser: JsonParser, node: JsonNode): PostStatus? {
 		if (node.isMissingNode || node.isNull) return null
